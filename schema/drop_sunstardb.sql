@@ -1,0 +1,10 @@
+drop table timeseries_data;
+drop table timeseries;
+drop table profile_map;
+drop table profile;
+drop table property;
+drop table source;
+drop table origin;
+drop table reference;
+drop table property_type;
+drop table star;
