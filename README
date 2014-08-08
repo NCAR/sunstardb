@@ -1,0 +1,30 @@
+Commands:
+
+# Create postgres user
+createuser --superuser $USER -U postgres
+
+# Start database server
+sudo su postgres -c 'pg_ctl start -D /opt/local/var/db/postgresql93/defaultdb -l /opt/local/var/db/postgresql93/serverlog'
+
+# Stop database server
+sudo su postgres -c 'pg_ctl stop -D /opt/local/var/db/postgresql93/defaultdb
+
+# Create database
+createdb sunstardb
+
+# Create schema
+psql sunstardb -f schema/create_sunstardb.sql
+
+# Drop schema
+psql sunstardb -f schema/drop_sunstardb.sql
+
+# Login to database
+psql sunstardb
+
+=== TODO Features
+
+ * Wiki for documentation, pointers in doc_url columns
+   - Use MoinMoin for a simpler wiki?  Or balls-out with Twiki?
+ * Rethink 'origin', 'reference', and 'instrument'.  Doesn't seem like
+   this is quite right yet...
+ * Implement VO standards?  http://www.ivoa.net/deployers/intro_to_vo_concepts.html
