@@ -71,8 +71,8 @@ def db_bind_keys(*reqkeys):
     def wrap(f):
         @wraps(f)
         def wrapped_f(self, *args, **kwargs):
-            if len(args) == 1 and isinstance(args[0], dict):
-                kwargs = args[0]
+            if len(args) == 1:
+                kwargs = args[0] # Assumed to be dict-like. TODO: check?
             misslist = []
             for req in reqkeys:
                 if req not in kwargs:
@@ -264,32 +264,59 @@ class SunStarDB(Database):
             property['val'] = None
 
         # Explicit None for all NULLable columns
-        for col in ('val', 'err', 'strval', 'obs_time', 'int_time', 'meta'):
+        for col in ('val', 'errlo', 'errhi', 'valerr', 'strval', 'obs_time', 'int_time', 'meta'):
             if col not in property:
                 property[col] = None
 
-        # Err as range
-        if property['err'] is not None:
-            # TODO: allow for asymetric ranges with list, e.g. [-0.1, 0.2]
-            # TODO: is err as range useful for queries, or val + err ?
-            err = property['err']
-            property['err'] = psycopg2.extras.NumericRange(-err, +err)
+        # Error
+        if 'err' in property:
+            # Case where error is expressed as a percent
+            if isinstance(property['err'], basestring) and property['err'].endswith('%'):
+                property['err'] = property['val'] * float(property['err'].rstrip('%')) / 100.0
+
+            # Set lo and hi bounds of the error
+            property['errhi'] = property['err']
+            property['errlo'] = property['err']
+            del property['err']
+
+        # Error as range
+        if property['valerr'] is None and property['errlo'] is not None and property['errhi'] is not None:
+            lo = property['val'] - property['errlo']
+            hi = property['val'] + property['errhi']
+            property['valerr'] = psycopg2.extras.NumericRange(lo, hi, '[]')
 
         return property
     
     @db_bind_keys('star_id', 'type_id', 'src_id', 'ref_id', 'inst_id',
-                  'val', 'err', 'strval',
+                  'val', 'errlo', 'errhi', 'valerr', 'strval',
                   'obs_time', 'int_time',
                   'meta')
     def insert_property(self, **kwargs):
         sql = """INSERT INTO property (star, type, source, reference, instrument,
-                                       val, err, strval,
+                                       val, errlo, errhi, valerr, strval,
                                        obs_time, int_time,
                                        meta)
                       VALUES (%(star_id)s, %(type_id)s, %(src_id)s, %(ref_id)s, %(inst_id)s,
-                             %(val)s, %(err)s, %(strval)s,
+                             %(val)s, %(errlo)s, %(errhi)s, %(valerr)s, %(strval)s,
                              %(obs_time)s, %(int_time)s,
                              %(meta)s)
                """
         self.execute(sql, kwargs)
         return self.fetch_property_by_id(kwargs)
+
+    @db_bind_keys('name')
+    def create_profile_from_origin(self, **kwargs):
+        db_origin = self.fetch_origin(kwargs)
+        sql = """INSERT INTO profile (name, description) VALUES (%(name)s, %(description)s)"""
+        profile = { 'name'        : db_origin['name'],
+                    'description' : db_origin['description'] }
+        self.execute(sql, profile)
+        sql = """INSERT INTO profile_map (profile, star, type, property)
+                 SELECT prof.id, prop.star, prop.type, prop.id
+                   FROM profile prof
+                   JOIN origin o on o.name = prof.name
+                   JOIN source s on s.origin = o.id
+                   JOIN property prop on prop.source = s.id
+                  WHERE prof.name = %(name)s"""
+        self.execute(sql, profile)
+        

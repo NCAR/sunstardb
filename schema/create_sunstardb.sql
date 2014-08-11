@@ -113,7 +113,9 @@ create table property
    reference		integer		not null,
    instrument		integer			,
    val			double precision        , -- reported value (when property is numeric)
-   err			numrange		, -- error arround reported value (range type)
+   errlo		double precision	, -- magnitude of lower value of error
+   errhi		double precision	, -- magnitude of upper value of error
+   valerr		numrange		, -- range of [val - errlow, val + errhi]
    strval		varchar(64)		, -- reported value when property is of string type
    obs_time		timestamp		, -- instant of time that measurement was taken
    int_time		tsrange			, -- time range over which individual measurements -> this meas.
@@ -123,6 +125,9 @@ create table property
    --
    constraint pk_property
      primary key (id),
+   --
+   constraint uq_property
+     unique (star, type, source),
    --
    constraint fk_property_star
      foreign key (star) references star (id),

@@ -22,6 +22,10 @@ reference = js['reference']
 origin = js['origin']
 instrument = js['instrument']
 properties = js['properties']
+if 'postproc' in js:
+    postproc = js['postproc']
+else:
+    postproc = None
 
 # If the origin is a paper, copy some data from the reference
 if origin['kind'] == 'PAPER':
@@ -49,6 +53,11 @@ print "XXX source", source
 db_source = db.insert_source(source)
 print "XXX db_source", db_source
 
+set_err = {}
+if postproc is not None:
+    if 'set_err' in postproc:
+        set_err = postproc['set_err']
+
 print "Inserting properties..."
 for ptype in properties:
     for p in properties[ptype]:
@@ -61,10 +70,21 @@ for ptype in properties:
             db_star = db.insert_star(star)
         print "XXX db_star", db_star
 
+        # Setting error
+        if ptype in set_err:
+            p['err'] = set_err[ptype]
+
         property = db.prepare_property(p, db_star, {'name':ptype}, db_source, db_ref)
+
         print "XXX property built", property
         db_prop = db.insert_property(property)
         print "XXX db_prop", db_prop
+
+if db_origin['kind'] == 'PAPER':
+    print "Creating profile from PAPER"
+    print "XXX db_origin", db_origin
+    print "XXX db_origin['id']", db_origin['id']
+    db.create_profile_from_origin(db_origin)
 
 db.commit()
 db.close()
