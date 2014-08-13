@@ -92,7 +92,7 @@ create table instrument
 create table property_type
   (id			serial		not null,
    name			varchar(32)	not null, -- name of property, e.g. MWO-HK_S
-   type			varchar(32)	not null, -- e.g. MEASURE, STRING, BOUND, RANGE
+   type			varchar(32)	not null check (type in ('MEASURE', 'LABEL')),
    units		varchar(32)		, -- physical units.  NULL when property is non-numeric or uniteless
    description		text		not null, -- paragraph describing the property
    --
@@ -104,7 +104,9 @@ create table property_type
   );
 
 
--- Property: a single measurement on or classification of a star
+-- Property: a single measurement on or label of a star
+-- This table holds all the identity, provenence references, and meta-data
+-- Actual data is contained in leaf tables
 create table property
   (id			serial		not null,
    star			integer		not null,
@@ -112,14 +114,7 @@ create table property
    source		integer		not null,
    reference		integer		not null,
    instrument		integer			,
-   val			double precision        , -- reported value (when property is numeric)
-   errlo		double precision	, -- magnitude of lower value of error
-   errhi		double precision	, -- magnitude of upper value of error
-   valerr		numrange		, -- range of [val - errlow, val + errhi]
-   strval		varchar(64)		, -- reported value when property is of string type
-   obs_time		timestamp		, -- instant of time that measurement was taken
-   int_time		tsrange			, -- time range over which individual measurements -> this meas.
-   meta			json			, -- metadata associated with this measurement
+   meta			json			, -- metadata associated with this property
    meta_time		timestamp	not null default current_timestamp, -- time that metadata was updated
    insert_time		timestamp	not null default current_timestamp,
    --
@@ -136,10 +131,40 @@ create table property
      foreign key (type) references property_type (id),
    --
    constraint fk_property_source
-     foreign key (source) references source (id),
+     foreign key (source) references source (id)
+     on delete cascade,
    --
    constraint fk_property_reference
      foreign key (reference) references reference (id)
+  );
+
+create table measure
+  (property		integer		 not null,
+   val			double precision not null, -- reported value
+   errlo		double precision	 , -- magnitude of lower value of error
+   errhi		double precision	 , -- magnitude of upper value of error
+   valerr		numrange		 , -- range of [val - errlow, val + errhi]
+   obs_time		timestamp		 , -- instant of time that measurement was taken
+   int_time		tsrange			 , -- time range over which individual measurements -> this meas.
+   --
+   constraint pk_measure
+     primary key (property),
+   --
+   constraint fk_measure_property
+     foreign key (property) references property (id)
+     on delete cascade
+  );
+
+create table label
+  (property		integer		not null,
+   label		varchar(64)	not null,
+   --
+   constraint pk_label
+     primary key (property),
+   --
+   constraint fk_label_property
+     foreign key (property) references property (id)
+     on delete cascade
   );
 
 create table profile

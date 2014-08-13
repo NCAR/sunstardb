@@ -92,6 +92,12 @@ class SunStarDB(Database):
         db_property_type = self.fetch_row(sql, kwargs)
         return db_property_type
 
+    @db_bind_keys('type_id')
+    def fetch_property_type_by_id(self, **kwargs):
+        sql = "SELECT * FROM property_type WHERE id=%(type_id)s"
+        db_property_type = self.fetch_row(sql, kwargs)
+        return db_property_type
+
     @db_bind_keys('name', 'type', 'units', 'description')
     def insert_property_type(self, **kwargs):
         sql = """INSERT INTO property_type (name, type, units, description)
@@ -164,13 +170,6 @@ class SunStarDB(Database):
         self.execute(sql, kwargs)
         return self.fetch_origin(kwargs)
 
-    @db_bind_keys('name', 'kind', 'url', 'doc_url', 'description')
-    def insert_origin(self, **kwargs):
-        sql = """INSERT INTO origin (name, kind, url, doc_url, description)
-                      VALUES (%(name)s, %(kind)s, %(url)s, %(doc_url)s, %(description)s)"""
-        self.execute(sql, kwargs)
-        return self.fetch_origin(kwargs)
-
     @db_bind_keys('url')
     def fetch_source(self, **kwargs):
         sql = """SELECT * FROM source WHERE url=%(url)s"""
@@ -197,7 +196,8 @@ class SunStarDB(Database):
     
     @db_bind_keys('star_id', 'type_id')
     def fetch_property_by_id(self, **kwargs):
-        sql = """SELECT * FROM property p
+        sql = """SELECT p.*
+                          FROM property p
                           JOIN star s ON s.id = p.star
                           JOIN property_type t ON t.id = p.type
                           JOIN source src ON src.id = p.source
@@ -258,13 +258,8 @@ class SunStarDB(Database):
         else:
             property['inst_id'] = None # explicitely
 
-        # String values
-        if isinstance(property['val'], basestring):
-            property['strval'] = property['val']
-            property['val'] = None
-
         # Explicit None for all NULLable columns
-        for col in ('val', 'errlo', 'errhi', 'valerr', 'strval', 'obs_time', 'int_time', 'meta'):
+        for col in ('errlo', 'errhi', 'valerr', 'obs_time', 'int_time', 'meta'):
             if col not in property:
                 property[col] = None
 
@@ -287,22 +282,38 @@ class SunStarDB(Database):
 
         return property
     
-    @db_bind_keys('star_id', 'type_id', 'src_id', 'ref_id', 'inst_id',
-                  'val', 'errlo', 'errhi', 'valerr', 'strval',
-                  'obs_time', 'int_time',
-                  'meta')
+    @db_bind_keys('star_id', 'type_id', 'src_id', 'ref_id', 'inst_id', 'meta')
     def insert_property(self, **kwargs):
-        sql = """INSERT INTO property (star, type, source, reference, instrument,
-                                       val, errlo, errhi, valerr, strval,
-                                       obs_time, int_time,
-                                       meta)
-                      VALUES (%(star_id)s, %(type_id)s, %(src_id)s, %(ref_id)s, %(inst_id)s,
-                             %(val)s, %(errlo)s, %(errhi)s, %(valerr)s, %(strval)s,
-                             %(obs_time)s, %(int_time)s,
-                             %(meta)s)
+        sql = """INSERT INTO property (star, type, source, reference, instrument, meta)
+                      VALUES (%(star_id)s, %(type_id)s, %(src_id)s, %(ref_id)s, %(inst_id)s, %(meta)s)
                """
         self.execute(sql, kwargs)
-        return self.fetch_property_by_id(kwargs)
+        db_prop = self.fetch_property_by_id(kwargs) # TODO: this fetch should contain property_type.type
+        db_type = self.fetch_property_type_by_id(kwargs) #  to eliminate this fetch...
+        kwargs['prop_id'] = db_prop['id']
+        if db_type['type'] == 'MEASURE':
+            self.insert_measure(kwargs)
+        elif db_type['type'] == 'LABEL':
+            self.insert_label(kwargs)
+        else:
+            raise Exception("Unexpected property_type.type: %(type)s" % db_type)
+        return db_prop
+
+    @db_bind_keys('prop_id', 'val', 'errlo', 'errhi', 'valerr', 'obs_time', 'int_time')
+    def insert_measure(self, **kwargs):
+        sql = """INSERT INTO measure (property, val, errlo, errhi, valerr, obs_time, int_time)
+                      VALUES (%(prop_id)s,
+                              %(val)s, %(errlo)s, %(errhi)s, %(valerr)s,
+                              %(obs_time)s, %(int_time)s)"""
+        self.execute(sql, kwargs)
+        return None # TODO: return measure?
+
+    @db_bind_keys('prop_id', 'label')
+    def insert_label(self, **kwargs):
+        sql = """INSERT INTO label (property, label)
+                      VALUES (%(prop_id)s, %(label)s)"""
+        self.execute(sql, kwargs)
+        return None # TODO: return measure?
 
     @db_bind_keys('name')
     def create_profile_from_origin(self, **kwargs):

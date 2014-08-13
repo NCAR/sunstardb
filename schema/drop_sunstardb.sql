@@ -2,6 +2,8 @@ drop table timeseries_data;
 drop table timeseries;
 drop table profile_map;
 drop table profile;
+drop table label;
+drop table measure;
 drop table property;
 drop table property_type;
 drop table instrument;
