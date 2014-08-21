@@ -30,3 +30,4 @@ psql sunstardb
  * Implement VO standards?  http://www.ivoa.net/deployers/intro_to_vo_concepts.html
  * Use ADSABS API to verify/format references:
    https://github.com/adsabs/adsabs-dev-api
+ * Data Input: Row mode; JSON with data spec. points to CSV file
