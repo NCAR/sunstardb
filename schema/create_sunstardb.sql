@@ -114,8 +114,6 @@ create table property
    source		integer		not null,
    reference		integer		not null,
    instrument		integer			,
-   meta			json			, -- metadata associated with this property
-   meta_time		timestamp	not null default current_timestamp, -- time that metadata was updated
    insert_time		timestamp	not null default current_timestamp,
    --
    constraint pk_property
@@ -136,35 +134,6 @@ create table property
    --
    constraint fk_property_reference
      foreign key (reference) references reference (id)
-  );
-
-create table measure
-  (property		integer		 not null,
-   val			double precision not null, -- reported value
-   errlo		double precision	 , -- magnitude of lower value of error
-   errhi		double precision	 , -- magnitude of upper value of error
-   valerr		numrange		 , -- range of [val - errlow, val + errhi]
-   obs_time		timestamp		 , -- instant of time that measurement was taken
-   int_time		tsrange			 , -- time range over which individual measurements -> this meas.
-   --
-   constraint pk_measure
-     primary key (property),
-   --
-   constraint fk_measure_property
-     foreign key (property) references property (id)
-     on delete cascade
-  );
-
-create table label
-  (property		integer		not null,
-   label		varchar(64)	not null,
-   --
-   constraint pk_label
-     primary key (property),
-   --
-   constraint fk_label_property
-     foreign key (property) references property (id)
-     on delete cascade
   );
 
 create table profile
