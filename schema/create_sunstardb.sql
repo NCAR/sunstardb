@@ -1,6 +1,6 @@
 create table star
   (id			serial		not null,
-   hd			integer			, -- Henry Draper catalog name, Simbad 'HD'
+   hd			varchar(32)		, -- Henry Draper catalog name, Simbad 'HD'
    bright		varchar(32)		, -- Simbad '*', bright star name: Bayer or Flamsteed
    proper		varchar(32)		, -- Simbad 'NAME', proper name
    insert_time		timestamp	not null default current_timestamp,
