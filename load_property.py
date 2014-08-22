@@ -3,6 +3,7 @@
 import json
 import sys
 import os
+import os.path
 
 import sunstardb
 import utils
@@ -14,7 +15,7 @@ print "Connecting to database...",
 db = sunstardb.SunStarDB(**db_params)
 print "Done."
         
-file = args[0]
+file = os.path.abspath(args[0])
 print "Loading %s," % (file), 
 fp = open(file)
 js = json.load(fp)
@@ -34,24 +35,16 @@ if origin['kind'] == 'PAPER':
     origin['doc_url'] = 'TODO'
     origin['description'] = reference['bibline']
 
-print "Inserting reference..."
-print "XXX reference", reference
+print "Inserting reference '%s'" % reference['name']
 db_ref = db.insert_reference(reference)
-print "XXX db_ref", db_ref
 
-print "Inserting origin..."
-print "XXX origin", origin
+print "Inserting origin '%s'" % origin['name']
 db_origin = db.insert_origin(origin)
-print "XXX db_origin", db_origin
-print "XXX db_origin['id']", db_origin['id']
 
-print "Inserting source..."
 source_time = utils.modification_date(file)
-print "XXX source_time", type(source_time), source_time
 source = dict(kind="FILE", origin_id=db_origin['id'], url=file, source_time=source_time)
-print "XXX source", source
+print "Inserting source '%s'" % source['url']
 db_source = db.insert_source(source)
-print "XXX db_source", db_source
 
 set_err = {}
 if postproc is not None:
@@ -59,33 +52,43 @@ if postproc is not None:
         set_err = postproc['set_err']
 
 print "Inserting properties..."
+starlist = {}
+n_prop = 0
 for ptype in properties:
     for p in properties[ptype]:
-        print "XXX ptype", ptype
-        print "XXX property read", p
         star = sunstardb.extract_star(p)
-        print "XXX star", star
         db_star = db.fetch_star(star)
         if db_star is None:
+            print "Inserting star", sunstardb.star_str(star)
             db_star = db.insert_star(star)
-        print "XXX db_star", db_star
+        starlist[db_star['id']] = db_star
 
         # Setting error
         if ptype in set_err:
             p['err'] = set_err[ptype]
 
+        print "Inserting property '%s' for star '%s'" % (ptype, sunstardb.star_str(db_star))
         property = db.prepare_property(p, db_star, {'name':ptype}, db_source, db_ref)
-
-        print "XXX property built", property
         db_prop = db.insert_property(property)
-        print "XXX db_prop", db_prop
+        n_prop += 1
+
+if 'sanity_check' in js:
+    print "Performing sanity checks"
+    tasks = js['sanity_check']
+    if 'exists_all_stars' in tasks:
+        for ptype in tasks['exists_all_stars']:
+            print "Checking '%s' data exists for all stars..." % ptype,
+            db.check_exists_all_stars(ptype, db_source['id'])
+            print "OK."
+
+n_stars = len(starlist)
+print "Inserted %i properties for %i stars" % (n_prop, n_stars)
 
 if db_origin['kind'] == 'PAPER':
-    print "Creating profile from PAPER"
-    print "XXX db_origin", db_origin
-    print "XXX db_origin['id']", db_origin['id']
+    print "Creating profile for PAPER '%s'" % db_origin['name']
     db.create_profile_from_origin(db_origin)
 
+print "Finished loading property file '%s', commiting." % file
 db.commit()
 db.close()
 fp.close()
