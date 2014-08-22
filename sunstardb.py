@@ -28,20 +28,53 @@ def extract_star(x):
     else:
         return y
 
+def star_str(star):
+    """Return a single string to describe a star row from the DB"""
+    for idtype in IDTYPES[1:]: # skip raw database ID
+        if idtype in star and star[idtype] is not None:
+            return "(%s) %s" % (idtype, star[idtype])
+
+def cannonical_to_simbad(idtype, id):
+    """Change a cannonical ID to a SIMBAD object name"""
+    return COLS2SIMBAD[idtype] + " " + id
+    
+def split_simbad_id(simbad_id):
+    idtype, id = simbad_id.split(" ", 1)
+    idtype = idtype.strip()
+    id = id.strip()
+    return idtype, id
+
 # TODO: move to auxilary class that does not require DB connection?
 def lookup_simbad_ids(object_name):
-    """Lookup the given object in Simbad and return a set of sunstardb star names"""
+    """Lookup the given object in Simbad and return a dict of arrays"""
+
     table = astroquery.simbad.Simbad.query_objectids(object_name)
     if table is None:
         return None
     names = {}
     for o in table:
-        idtype, id = o[0].split(" ", 1)
-        idtype = idtype.strip()
-        id = id.strip()
-        if idtype in SIMBAD2COLS:
-            names[SIMBAD2COLS[idtype]] = id
+        idtype, id = split_simbad_id(o[0])
+        if idtype not in names:
+            names[idtype] = []
+        names[idtype].append(id)
     return names
+
+def simbad_ids_to_cannonical(simbad_names):
+    cannonical_names = {}
+    for idtype, idary in simbad_names.items():
+        if idtype in SIMBAD2COLS:
+            # By default take the first ID of a given type in the array.
+            # Special cases are below.
+            cannonical_id = idary[0]
+            if idtype == 'HD' and len(idary) > 1:
+                # Prefer HD IDs that end in letters; they are more precise
+                for id in idary:
+                    if id[-1].isalpha():
+                        cannonical_id = id
+                        break
+            cannonical_names[ SIMBAD2COLS[idtype] ] = cannonical_id
+
+    return cannonical_names
 
 class DatabaseKeyError(Exception):
     """Error raised when a DB function is called without supplying data for the required columns"""
@@ -107,12 +140,9 @@ class SunStarDB(Database):
         sql = """INSERT INTO property_type (name, type, units, description)
                       VALUES (%(name)s, %(type)s, %(units)s, %(description)s)"""
         self.execute(sql, kwargs)
-        print "XXX inserted"
         ptype = self.fetch_property_type(kwargs)
-        print "XXX ptype:", ptype
         create_dict = dict(ptype)
         create_dict['table_name'] = 'dat_' + create_dict['name']
-        print "XXX create_dict", create_dict
         create_pre = """CREATE TABLE %(table_name)s
                           (property integer not null,
                            star integer not null,
@@ -151,7 +181,6 @@ class SunStarDB(Database):
             raise Exception("Invalid ptype '%(type)s'" % ptype)
         create_sql = create_pre + create_mid + create_post
         create_sql = create_sql % create_dict
-        print "XXX create_sql:", create_sql
         self.execute(create_sql)
         return ptype
         
@@ -179,7 +208,6 @@ class SunStarDB(Database):
 
     @db_bind_keys() # no required keys
     def fetch_star(self, **kwargs):
-        print "XXX fetch_star kwargs", kwargs
         idtype = pref_idtype(kwargs)
         sql = "SELECT * FROM star WHERE %s = %%(%s)s" % (idtype, idtype)
         db_star = self.fetch_row(sql, { idtype : kwargs[idtype] })
@@ -188,18 +216,30 @@ class SunStarDB(Database):
     @db_bind_keys() # no required keys
     def insert_star(self, **kwargs):
         idtype = pref_idtype(kwargs)
-        object_name = COLS2SIMBAD[idtype] + " " + kwargs[idtype]
-        simbad_ids = lookup_simbad_ids(object_name)
+        simbad_name = cannonical_to_simbad(idtype, kwargs[idtype])
+        simbad_ids = lookup_simbad_ids(simbad_name)
         if simbad_ids is not None:
-            star = simbad_ids
-        else:
+            star = simbad_ids_to_cannonical(simbad_ids)
+        elif 'proper' in kwargs and kwargs['proper'] == 'Sun':
+            # The Sun is not in SIMBAD, make exception to allow it to be inserted into database
             star = kwargs
+        else:
+            # Require that object exists in SIMBAD
+            raise Exception("Object '%s' not found in SIMBAD. Input was '%s'" % (simbad_name, repr(kwargs)))
 
+        # Explicit NULL for non-existing columns
         for id in COLS2SIMBAD:
             if id not in star:
                 star[id] = None
 
-        print "XXX inserting star", star
+        # Cannonical name chosen by simbad_ids_to_cannoical() may not
+        # be same as kwargs value, and may in fact already be in the
+        # database.  Here we check for it in the database before
+        # proceeding with the INSERT.
+        db_star = self.fetch_star(star)
+        if db_star is not None:
+            return db_star
+
         insert_sql = """INSERT INTO star (hd, bright, proper) 
                              VALUES (%(hd)s, %(bright)s, %(proper)s)"""
         self.execute(insert_sql, star)
@@ -237,8 +277,6 @@ class SunStarDB(Database):
                 sql += " AND version=%(version)s"
             else:
                 sql += " AND version IS NULL"
-        print "XXX fetch_source", sql
-        print "XXX fetch_source", kwargs
         return self.fetch_row(sql, kwargs)
 
     @db_bind_keys('kind', 'url', 'origin_id', 'source_time')
@@ -395,3 +433,24 @@ class SunStarDB(Database):
                   WHERE prof.name = %(name)s"""
         self.execute(sql, profile)
         
+    def check_exists_all_stars(self, ptype, src_id):
+        sql = """SELECT DISTINCT s.*
+                   FROM property p
+                   JOIN star s on s.id = p.star
+                  WHERE p.source = %(src_id)s
+                    AND p.star NOT IN (SELECT p2.star
+                                         FROM property p2
+                                         JOIN property_type pt on pt.id = p2.type
+                                        WHERE p2.source = %(src_id)s
+                                          AND pt.name = %(ptype)s)
+              """
+        results, colnames = self.fetchall(sql, { 'ptype' : ptype, 'src_id' : src_id }, colnames=True)
+        if results is not None:
+            n_bad = len(results)
+            message = "CHECK FAILED: The following %i stars do not have '%s' data:\n" % (n_bad, ptype)
+            message += "\t".join(colnames) + "\n"
+            for row in results:
+                message += "\t".join(str(i) for i in row) + "\n"
+            raise Exception(message)
+        else:
+            return True
