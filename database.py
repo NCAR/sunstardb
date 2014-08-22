@@ -124,6 +124,7 @@ class Database():
 
     def open(self):
         """Open a new connection and cursor"""
+        # TODO: NamedTupleCursor is more powerful. Update?
         self.connection = psycopg2.connect(self.conn_str, cursor_factory=psycopg2.extras.DictCursor)
 
     def close(self):
@@ -149,6 +150,32 @@ class Database():
             result_dict[row[key]] = row[val]
         result.close()
         return result_dict
+
+    def colnames(self, cursor):
+        return tuple(desc[0] for desc in cursor.description)
+
+    def fetchall(self, sql, binds = None, colnames = False):
+        """Return all results of an SQL query, or None
+
+        Input:
+         - sql <string> : SELECT statement to execute
+         - binds <dict> : optional bind parameters
+         
+        Output:
+         - <list> : a list of rows
+        """
+        result = self.execute(sql, binds)
+        if colnames is True:
+            colnames = self.colnames(result)
+        all = result.fetchall()
+        result.close()
+        if len(all) == 0:
+            all = None
+
+        if not colnames:
+            return all
+        else:
+            return all, colnames
 
     def fetchall_dict(self, sql, binds = None, key = 0, val = 1):
         """Return sql query as a dictionary of { col[0] : col[1] }
