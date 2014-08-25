@@ -118,7 +118,6 @@ def db_bind_keys(*reqkeys):
     return wrap
 
 class SunStarDB(Database):
-
     @db_bind_keys('name')
     def fetch_property_type(self, **kwargs):
         sql = "SELECT * FROM property_type WHERE name=%(name)s"
@@ -454,3 +453,50 @@ class SunStarDB(Database):
             raise Exception(message)
         else:
             return True
+
+    def fetch_data(self, ptype):
+        """Fetch data and all associated info for the given property type"""
+        
+        sql = """SELECT s.id star_id, s.hd, s.bright, s.proper,
+                        r.name reference, o.name origin, o.kind origin_kind, i.name instrument,
+                        p.id prop_id, d.%(ptype)s
+                   FROM %(ptype)s d
+                   JOIN property p ON p.id = d.property
+                   JOIN star s ON s.id = p.star
+                   JOIN reference r ON r.id = p.reference
+                   JOIN source src ON src.id = p.source
+                   JOIN origin o ON o.id = src.origin
+                   JOIN instrument i ON i.id = p.instrument"""
+        # TODO: validate to prevent SQL injection
+        result = self.fetchall(sql % ptype)
+        return result
+
+    def fetch_data_table(self, ptypes, nulls=True):
+        """Fetch star names and values as a table for the given propety types"""
+        ixs = range(len(ptypes))
+        sql = "WITH uq_stars AS ( "
+        sql += " UNION ".join( "SELECT star FROM dat_%s" % t for t in ptypes)
+        sql += ") SELECT s.id star, "
+        sql += ", ".join( "d%02i.%s" % (i, ptypes[i]) for i in ixs )
+        sql += " FROM uq_stars us JOIN star s ON s.id = us.star"
+        if nulls is True:
+            jointype = "LEFT JOIN"
+        else:
+            jointype = "JOIN"
+            
+        for i in ixs:
+            sql += " %s dat_%s d%02i ON d%02i.star = s.id" % (jointype, ptypes[i], i, i)
+
+        result = self.fetchall(sql)
+        return result
+
+    def fetch_data_cols(self, ptypes, nulls=True):
+        result = self.fetch_data_table(ptypes, nulls=nulls)
+        cols = {}
+        col_list = ['star'] + ptypes
+        for c in col_list:
+            cols[c] = []
+        for row in result:
+            for c in col_list:
+                cols[c].append(row[c.lower()])
+        return cols
