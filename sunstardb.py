@@ -34,8 +34,8 @@ def star_str(star):
         if idtype in star and star[idtype] is not None:
             return "(%s) %s" % (idtype, star[idtype])
 
-def cannonical_to_simbad(idtype, id):
-    """Change a cannonical ID to a SIMBAD object name"""
+def canonical_to_simbad(idtype, id):
+    """Change a canonical ID to a SIMBAD object name"""
     return COLS2SIMBAD[idtype] + " " + id
     
 def split_simbad_id(simbad_id):
@@ -59,22 +59,22 @@ def lookup_simbad_ids(object_name):
         names[idtype].append(id)
     return names
 
-def simbad_ids_to_cannonical(simbad_names):
-    cannonical_names = {}
+def simbad_ids_to_canonical(simbad_names):
+    canonical_names = {}
     for idtype, idary in simbad_names.items():
         if idtype in SIMBAD2COLS:
             # By default take the first ID of a given type in the array.
             # Special cases are below.
-            cannonical_id = idary[0]
+            canonical_id = idary[0]
             if idtype == 'HD' and len(idary) > 1:
                 # Prefer HD IDs that end in letters; they are more precise
                 for id in idary:
                     if id[-1].isalpha():
-                        cannonical_id = id
+                        canonical_id = id
                         break
-            cannonical_names[ SIMBAD2COLS[idtype] ] = cannonical_id
+            canonical_names[ SIMBAD2COLS[idtype] ] = canonical_id
 
-    return cannonical_names
+    return canonical_names
 
 class DatabaseKeyError(Exception):
     """Error raised when a DB function is called without supplying data for the required columns"""
@@ -215,10 +215,10 @@ class SunStarDB(Database):
     @db_bind_keys() # no required keys
     def insert_star(self, **kwargs):
         idtype = pref_idtype(kwargs)
-        simbad_name = cannonical_to_simbad(idtype, kwargs[idtype])
+        simbad_name = canonical_to_simbad(idtype, kwargs[idtype])
         simbad_ids = lookup_simbad_ids(simbad_name)
         if simbad_ids is not None:
-            star = simbad_ids_to_cannonical(simbad_ids)
+            star = simbad_ids_to_canonical(simbad_ids)
         elif 'proper' in kwargs and kwargs['proper'] == 'Sun':
             # The Sun is not in SIMBAD, make exception to allow it to be inserted into database
             star = kwargs
@@ -231,7 +231,7 @@ class SunStarDB(Database):
             if id not in star:
                 star[id] = None
 
-        # Cannonical name chosen by simbad_ids_to_cannoical() may not
+        # Canonical name chosen by simbad_ids_to_cannoical() may not
         # be same as kwargs value, and may in fact already be in the
         # database.  Here we check for it in the database before
         # proceeding with the INSERT.
