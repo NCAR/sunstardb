@@ -476,7 +476,7 @@ class SunStarDB(Database):
         ixs = range(len(ptypes))
         sql = "WITH uq_stars AS ( "
         sql += " UNION ".join( "SELECT star FROM dat_%s" % t for t in ptypes)
-        sql += ") SELECT s.id star, "
+        sql += ") SELECT s.canon star, "
         sql += ", ".join( "d%02i.%s" % (i, ptypes[i]) for i in ixs )
         sql += " FROM uq_stars us JOIN star s ON s.id = us.star"
         if nulls is True:

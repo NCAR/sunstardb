@@ -1,5 +1,6 @@
 create table star
   (id			serial		not null,
+   canon		varchar(32)	not null, -- canonical name, one of the below, perhaps with prefix
    hd			varchar(32)		, -- Henry Draper catalog name, Simbad 'HD'
    bright		varchar(32)		, -- Simbad '*', bright star name: Bayer or Flamsteed
    proper		varchar(32)		, -- Simbad 'NAME', proper name
@@ -8,6 +9,9 @@ create table star
    constraint pk_star
      primary key (id),
    --
+   constraint uq_star_canon
+     unique (canon),
+   -- 
    constraint uq_star_hd
      unique (hd),
    --
@@ -17,6 +21,27 @@ create table star
    constraint uq_bayer
      unique (proper)
   );
+
+CREATE FUNCTION create_canon_name()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW.hd IS NOT NULL) THEN
+      NEW.canon := 'HD ' || NEW.hd;
+    ELSIF (NEW.bright IS NOT NULL) THEN
+      NEW.canon := NEW.bright;
+    ELSIF (NEW.proper IS NOT NULL) THEN
+      NEW.canon := NEW.proper;
+    ELSE
+      RAISE EXCEPTION 'No identifications provided for star.';
+    END IF;
+    RETURN NEW;
+END;
+$$  LANGUAGE plpgsql;
+
+CREATE TRIGGER tg_star_canon
+    BEFORE INSERT ON star
+    FOR EACH ROW
+    EXECUTE PROCEDURE create_canon_name();
 
 -- Reference to published work using data and/or describing accumulation of it
 create table reference
