@@ -1,5 +1,9 @@
 from functools import wraps
+import os
+import os.path
+
 from database import *
+
 import psycopg2, psycopg2.extras
 import astroquery.simbad
 
@@ -10,6 +14,29 @@ psycopg2.extensions.register_adapter(dict, psycopg2.extras.Json)
 COLS2SIMBAD = dict(hd='HD', bright='*', proper='NAME')
 SIMBAD2COLS = dict((v,k) for k, v in COLS2SIMBAD.iteritems())
 IDTYPES = ( 'id', 'hd', 'bright', 'proper' ) # in order of preference
+TABLE_TEMPLATES = {}
+
+def _set_templates():
+    dir = os.path.dirname(os.path.abspath(__file__))
+    schema = os.path.join(dir, 'schema', 'create_sunstardb.sql')
+    file = open(schema)
+    template = None
+    for line in file:
+        line = line.rstrip()
+        if len(line) > 3 and line[0] == '<' and line[-1] == '>' and line[1] != '/': # tag like <NAME>
+            template = line[1:-1] # gets NAME
+            TABLE_TEMPLATES[template] = "" # initialize string
+            continue
+        elif template is not None:
+            if len(line) > 3 and line[0:2] == '</' and line[-1] == '>': # end tag </NAME>
+                template = None
+                continue
+            else:
+                # Add line to saved templates
+                TABLE_TEMPLATES[template] += line + "\n"
+    file.close()
+    if template is not None:
+        raise Exception("Template parsing finished without closing tag '%s'" % template)
 
 def pref_idtype(names):
     """Return the preferred star ID from those available in the given dict"""
@@ -136,51 +163,16 @@ class SunStarDB(Database):
 
     @db_bind_keys('name', 'type', 'units', 'description')
     def insert_property_type(self, **kwargs):
+        # Prepare the DDL schema templates if it has not already been done
+        if not TABLE_TEMPLATES:
+            _set_templates()
         sql = """INSERT INTO property_type (name, type, units, description)
                       VALUES (%(name)s, %(type)s, %(units)s, %(description)s)"""
         self.execute(sql, kwargs)
         ptype = self.fetch_property_type(kwargs)
-        create_dict = dict(ptype)
-        create_dict['table_name'] = 'dat_' + create_dict['name']
-        create_pre = """CREATE TABLE %(table_name)s
-                          (property integer not null,
-                           star integer not null,
-                           type integer not null default %(id)s check (type = %(id)s),
-                           source integer not null,"""
-        create_post = """meta json,
-                         meta_time timestamp not null default current_timestamp,
-                         constraint pk_%(table_name)s
-                           primary key (property),
-                         constraint uq_%(table_name)s_property_integ
-                           unique (star, type, source),
-                         constraint fk_%(table_name)s_property
-                           foreign key (property) references property (id)
-                           on delete cascade,
-                         constraint fk_%(table_name)s_property_integ
-                           foreign key (star, type, source) references property (star, type, source),
-                         constraint fk_%(table_name)s_star
-                           foreign key (star) references star (id),
-                         constraint fk_%(table_name)s_type
-                           foreign key (type) references property_type (id),
-                         constraint fk_%(table_name)s_source
-                           foreign key (source) references source (id)
-                         )
-                      """
-
-        if ptype['type'] == 'MEASURE':
-            create_mid = """%(name)s double precision not null,
-                            errlo double precision,
-                            errhi double precision,
-                            errbounds numrange,
-                            obs_time timestamp,
-                            int_time tsrange,"""
-        elif ptype['type'] == 'LABEL':
-            create_mid = """%(name)s varchar(100) not null,"""
-        else:
-            raise Exception("Invalid ptype '%(type)s'" % ptype)
-        create_sql = create_pre + create_mid + create_post
-        create_sql = create_sql % create_dict
-        self.execute(create_sql)
+        template = TABLE_TEMPLATES[ptype['type']]
+        create_ddl = template % ptype # Set %(name) and %(id) in table creation DDL
+        self.execute(create_ddl)
         return ptype
         
     @db_bind_keys('name')

@@ -96,6 +96,8 @@ create table source
      foreign key (origin) references origin (id)
   );
 
+create index ix_source_origin on source (origin);
+
 -- Observational instrument a property is derived from
 create table instrument
   (id			serial		not null,
@@ -158,8 +160,18 @@ create table property
      on delete cascade,
    --
    constraint fk_property_reference
-     foreign key (reference) references reference (id)
+     foreign key (reference) references reference (id),
+   --
+   constraint fk_property_instrument
+     foreign key (instrument) references instrument (id)
   );
+
+create index ix_property_star on property (star);
+create index ix_property_type on property (type);
+create index ix_property_source on property (source);
+create index ix_property_reference on property (reference);
+create index ix_property_instrument on property (instrument);
+
 
 create table profile
   (id			serial		not null,
@@ -190,9 +202,10 @@ create table timeseries
    type			integer		not null,
    source		integer		not null,
    reference		integer		not null,
-   meta			json		not null,
+   instrument		integer			,
    insert_time		timestamp	not null default current_timestamp,
    append_time		timestamp	not null,
+   meta			json		not null, -- meta information for the whole timeseries
    meta_time		timestamp	not null,
    --
    constraint pk_timeseries
@@ -208,21 +221,130 @@ create table timeseries
      foreign key (source) references source (id),
    --
    constraint fk_timeseries_reference
-     foreign key (reference) references reference (id)
+     foreign key (reference) references reference (id),
+   --
+   constraint fk_timeseries_instrument
+     foreign key (instrument) references instrument (id)
   );
 
--- TODO: use Postgres range type for errors?
-create table timeseries_data
-  (timeseries		integer		not null,
-   obs_time		timestamp	not null,
-   value		double precision not null,
-   err_pos		double precision	,
-   err_neg		double precision	,
-   insert_time		timestamp	not null default current_timestamp,
+create index ix_timeseries_star on timeseries (star);
+create index ix_timeseries_type on timeseries (type);
+create index ix_timeseries_source on timeseries (source);
+create index ix_timeseries_reference on timeseries (reference);
+create index ix_timeseries_instrument on timeseries (instrument);
+
+/*** Table Templates ***
+
+<MEASURE>
+create table dat_%(name)s
+  (property		integer			not null,
+   star			integer			not null,
+   type			integer			not null default %(id)s check (type = %(id)s),
+   source		integer			not null,
+   %(name)s		double precision	not null,
+   errlo		double precision	,
+   errhi		double precision	,
+   errbounds		numrange		,
+   obs_time		timestamp		,
+   int_time		tsrange			,
+   meta			json			,
+   meta_time		timestamp		not null default current_timestamp,
    --
-   constraint pk_timeseries_data
+   constraint pk_dat_%(name)s
+     primary key (property),
+   --
+   constraint uq_dat_%(name)s_property_integ
+     unique (star, type, source),
+   --
+   constraint fk_dat_%(name)s_property
+     foreign key (property) references property (id)
+     on delete cascade,
+   --
+   constraint fk_dat_%(name)s_property_integ
+     foreign key (star, type, source) references property (star, type, source),
+   --
+   constraint fk_dat_%(name)s_star
+     foreign key (star) references star (id),
+   --
+   constraint fk_dat_%(name)s_type
+     foreign key (type) references property_type (id),
+   --
+   constraint fk_dat_%(name)s_source
+     foreign key (source) references source (id)
+  );
+</MEASURE>
+
+<LABEL>
+create table dat_%(name)s
+  (property		integer			not null,
+   star			integer			not null,
+   type			integer			not null default %(id)s check (type = %(id)s),
+   source		integer			not null,
+   %(name)s		varchar(100)		not null,
+   meta			json			,
+   meta_time		timestamp		not null default current_timestamp,
+   --
+   constraint pk_dat_%(name)s
+     primary key (property),
+   --
+   constraint uq_dat_%(name)s_property_integ
+     unique (star, type, source),
+   --
+   constraint fk_dat_%(name)s_property
+     foreign key (property) references property (id)
+     on delete cascade,
+   --
+   constraint fk_dat_%(name)s_property_integ
+     foreign key (star, type, source) references property (star, type, source),
+   --
+   constraint fk_dat_%(name)s_star
+     foreign key (star) references star (id),
+   --
+   constraint fk_dat_%(name)s_type
+     foreign key (type) references property_type (id),
+   --
+   constraint fk_dat_%(name)s_source
+     foreign key (source) references source (id)
+  );
+</LABEL>
+
+<TIMESERIES>
+create table ser_%(name)s
+  (timeseries		integer			not null,
+   star			integer			not null,
+   type			integer			not null default %(id)s check (type = %(id)s),
+   source		integer			not null,
+   obs_time		timestamp		not null,
+   %(name)s		double precision	not null,
+   errlo		double precision	,
+   errhi		double precision	,
+   errbounds		numrange		,
+   insert_time		timestamp		not null default current_timestamp,
+   meta			json			,
+   meta_time		timestamp		not null default current_timestamp,
+   --
+   constraint pk_ser_%(name)s
      primary key (timeseries, obs_time),
    --
-   constraint fk_timeseries_data_timeseries
-     foreign key (timeseries) references timeseries (id)
+   constraint uq_ser_%(name)s_property_integ
+     unique (star, type, source),
+   --
+   constraint fk_ser_%(name)s_property
+     foreign key (property) references timeseries (id)
+     on delete cascade,
+   --
+   constraint fk_ser_%(name)s_property_integ
+     foreign key (star, type, source) references timeseries (star, type, source),
+   --
+   constraint fk_ser_%(name)s_star
+     foreign key (star) references star (id),
+   --
+   constraint fk_ser_%(name)s_type
+     foreign key (type) references property_type (id),
+   --
+   constraint fk_ser_%(name)s_source
+     foreign key (source) references source (id)
   );
+</TIMESERIES>
+
+*/
