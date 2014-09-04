@@ -11,8 +11,8 @@ def prep_filepath(filename, savedir, ext='.png'):
     return filepath
 
 def make_hist(data, filename,
-              title=None, xlabel=None, ylabel='N',
-              nbins=20, facecolor='black', alpha=0.75):
+              title=None, xlabel=None, ylabel='N', nbins=20, 
+              **kwargs):
     """Make a histogram"""
     if title is None:
         title = filename
@@ -20,16 +20,18 @@ def make_hist(data, filename,
         xlabel = filename
     fig = pyplot.figure()
     ax = fig.gca()
-    n, bins, patches = ax.hist(data, nbins, facecolor=facecolor, alpha=alpha)
+    n, bins, patches = ax.hist(data, nbins, **kwargs)
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True)
     return fig
 
-def show_hist(data, filename, **kwargs):
+def show_hist(data, filename, legend=False, **kwargs):
     """Show a histogram"""
     fig = make_hist(data, filename, **kwargs)
+    if legend is not False:
+        pyplot.legend()
     pyplot.show()
     pyplot.close(fig)
     return "<screen>"

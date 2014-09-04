@@ -292,7 +292,8 @@ class SunStarDB(Database):
                           JOIN reference r ON r.id = p.reference
                      LEFT JOIN instrument i ON i.id = p.instrument
                          WHERE s.id = %(star_id)s
-                           AND t.id = %(type_id)s"""
+                           AND t.id = %(type_id)s
+                           AND src.id = %(src_id)s"""
         # TODO: need to make compound object: star, source, reference, instrument
         db_property = self.fetch_row(sql, kwargs)
         return db_property
@@ -355,7 +356,7 @@ class SunStarDB(Database):
         if 'err' in property:
             # Case where error is expressed as a percent
             if isinstance(property['err'], basestring) and property['err'].endswith('%'):
-                property['err'] = property['val'] * float(property['err'].rstrip('%')) / 100.0
+                property['err'] = abs(property['val']) * float(property['err'].rstrip('%')) / 100.0
 
             # Set lo and hi bounds of the error
             property['errhi'] = property['err']
@@ -463,11 +464,36 @@ class SunStarDB(Database):
         result = self.fetchall(sql % ptype)
         return result
 
-    def fetch_data_table(self, ptypes, nulls=True):
-        """Fetch star names and values as a table for the given propety types"""
+    def fetch_data_table(self, profile, ptypes, nulls=True):
+        """Fetch star names and data as a table for the given profile
+
+        Inputs:
+         - profile <str>  : profile name
+         - ptypes <array> : an array of property types to fetch
+         - nulls <bool>   : whether to allow null values in the columns
+
+         Output:
+          - result <array> : an array of psycopg2.extras.DictRow
+
+        If 'nulls' is True, all existing data will be returned.  If
+        'nulls' is False, only rows for which data exists for each
+        given ptype will be returned.
+
+        The DictRow results may be accessed like a dict.  Each
+        row will have a 'star' key, pointing to the canonical star
+        name, and a key for each property type given.
+        """
         ixs = range(len(ptypes))
-        sql = "WITH uq_stars AS ( "
-        sql += " UNION ".join( "SELECT star FROM dat_%s" % t for t in ptypes)
+        sql = "WITH "
+        for i in ixs:
+            sql += """d%02i AS (
+                        SELECT d.* FROM dat_%s d
+                          JOIN profile_map pm ON pm.property = d.property
+                          JOIN profile pf ON pf.id = pm.profile
+                         WHERE pf.name = %%(profile)s ),
+            """ % (i, ptypes[i])
+        sql += "uq_stars AS ( "
+        sql += " UNION ".join( "SELECT star FROM d%02i" % i for i in ixs)
         sql += ") SELECT s.canon star, "
         sql += ", ".join( "d%02i.%s" % (i, ptypes[i]) for i in ixs )
         sql += " FROM uq_stars us JOIN star s ON s.id = us.star"
@@ -477,13 +503,31 @@ class SunStarDB(Database):
             jointype = "JOIN"
             
         for i in ixs:
-            sql += " %s dat_%s d%02i ON d%02i.star = s.id" % (jointype, ptypes[i], i, i)
+            sql += " %s d%02i ON d%02i.star = s.id" % (jointype, i, i)
 
-        result = self.fetchall(sql)
+        result = self.fetchall(sql, { 'profile' : profile})
         return result
 
-    def fetch_data_cols(self, ptypes, nulls=True):
-        result = self.fetch_data_table(ptypes, nulls=nulls)
+    def fetch_data_cols(self, profile, ptypes, nulls=True):
+        """Fetch a data table as a dictionary of columns
+
+        Inputs:
+         - profile <str>  : profile name
+         - ptypes <array> : an array of property types to fetch
+         - nulls <bool>   : whether to allow null values in the columns
+
+         Output:
+          - cols <dict>   : dictionary containing columns
+
+        If 'nulls' is True, all existing data will be returned.  If
+        'nulls' is False, only rows for which data exists for each
+        given ptype will be returned.
+
+        The returned data format is like: 
+          { 'ptype1' : [ 1, 2, 3, ... ], 'ptype2' : [ 1, 2, 3 ], ... }
+        """
+
+        result = self.fetch_data_table(profile, ptypes, nulls=nulls)
         cols = {}
         col_list = ['star'] + ptypes
         for c in col_list:
