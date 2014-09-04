@@ -119,7 +119,7 @@ create table instrument
 create table property_type
   (id			serial		not null,
    name			varchar(32)	not null, -- name of property, e.g. MWO-HK_S
-   type			varchar(32)	not null check (type in ('MEASURE', 'LABEL')),
+   type			varchar(32)	not null check (type in ('MEASURE', 'LABEL', 'TIMESERIES')),
    units		varchar(32)		, -- physical units.  NULL when property is non-numeric or uniteless
    description		text		not null, -- paragraph describing the property
    --
@@ -148,6 +148,9 @@ create table property
    --
    constraint uq_property
      unique (star, type, source),
+   -- for profile_map foreign key
+   constraint uq_property_profile
+     unique (id, star, type),
    --
    constraint fk_property_star
      foreign key (star) references star (id),
@@ -193,8 +196,24 @@ create table profile_map
    property		integer		not null,
    --
    constraint pk_profile_map
-     primary key (profile, star, type, property)
+     primary key (profile, star, type),
+   --
+   constraint fk_profile_map_profile
+     foreign key (profile) references profile (id),
+   --
+   constraint fk_profile_map_star
+     foreign key (star) references star (id),
+   --
+   constraint fk_profile_map_type
+     foreign key (type) references property_type (id),
+   --
+   constraint fk_profile_map_property
+     foreign key (property, star, type) references property (id, star, type)
   );
+
+create index ix_profile_map_star on profile_map (star);
+create index ix_profile_map_type on profile_map (type);
+create index ix_profile_map_property on profile_map (property);
 
 create table timeseries
   (id			serial		not null,
