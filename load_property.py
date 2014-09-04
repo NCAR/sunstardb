@@ -19,14 +19,16 @@ file = os.path.abspath(args[0])
 print "Loading %s," % (file), 
 fp = open(file)
 js = json.load(fp)
+
+# Required keys
 reference = js['reference']
 origin = js['origin']
-instrument = js['instrument']
 properties = js['properties']
-if 'postproc' in js:
-    postproc = js['postproc']
-else:
-    postproc = None
+
+# Optional keys
+instrument = js.get('instrument') # TODO: set instrument below!
+postproc = js.get('postproc')
+
 
 # If the origin is a paper, copy some data from the reference
 if origin['kind'] == 'PAPER':
