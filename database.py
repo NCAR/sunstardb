@@ -32,7 +32,8 @@ class Database():
     def __init__(self,
                  drivername = "postgres",
                  host = "localhost", port = None, database = None,
-                 username = None, password = None
+                 username = None, password = None,
+                 debug = False
                  ):
         """Connect to a database
 
@@ -50,7 +51,9 @@ class Database():
          - database <str> : database name
          - username <str> : database user name
          - password <str> : password for username
+         - debug <bool> : enable debug mode
         """
+        self.debug = debug
 
         # If the user provided a database or user build a dburl
         if (database is not None or username is not None):
@@ -106,6 +109,10 @@ class Database():
 
         """
         cursor = self.connection.cursor()
+
+        if self.debug:
+            print "SQL:", sql
+
         if binds is None:
             cursor.execute(sql)
         else:
@@ -405,6 +412,9 @@ def db_optparser(parser = OptionParser(add_help_option=False)):
                       help="Prompt for password")
     parser.add_option("-d", "--dbname", dest="dbname",
                       help="Database name")
+    parser.add_option("-D", "--debug", dest="debug",
+                      action='store_true', default=False,
+                      help="Debug mode. Default False.")
     return parser
 
 def db_kwargs(options):
@@ -420,5 +430,6 @@ def db_kwargs(options):
                  'port'     : options.port,
                  'database' : options.dbname,
                  'username' : options.user,
-                 'password' : password}
+                 'password' : password,
+                 'debug'    : options.debug}
     return db_kwargs
