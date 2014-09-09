@@ -34,7 +34,6 @@ postproc = js.get('postproc')
 if origin['kind'] == 'PAPER':
     origin['name'] = reference['name']
     origin['url'] = 'adslabs.harvard.edu/abs/%s' % (reference['bibcode'])
-    origin['doc_url'] = 'TODO'
     origin['description'] = reference['bibline']
 
 print "Inserting reference '%s'" % reference['name']

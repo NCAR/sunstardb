@@ -64,7 +64,6 @@ create table origin
    name			varchar(64)	not null, -- short, descriptive name e.g. SIMBAD
    kind			varchar(32)	not null check (kind in ('RAW', 'VO', 'WEB', 'PAPER')),
    url			varchar(1024)		, -- link to website, VO, or adsabs
-   doc_url		varchar(1024)	not null, -- internal documentation URL
    description		text		not null, -- short paragraph describing origin
    insert_time		timestamp	not null default current_timestamp,
    --
@@ -104,7 +103,6 @@ create table instrument
    name			varchar(32)	not null, -- short name, e.g. MWO-HK
    long			varchar(64)	not null, -- long name, e.g. Mount Wilson Observatory HK Project
    url			varchar(1024)		, -- canonical URL to instrument information
-   doc_url		varchar(1024)	not null, -- internal documentation URL
    description		text		not null, -- short paragraph describing the instrument
    insert_time		timestamp	not null default current_timestamp,
    --
@@ -118,7 +116,7 @@ create table instrument
 -- Data column descriptor
 create table property_type
   (id			serial		not null,
-   name			varchar(32)	not null, -- name of property, e.g. MWO-HK_S
+   name			varchar(32)	not null, -- name of property, e.g. Pcyc
    type			varchar(32)	not null check (type in ('MEASURE', 'LABEL', 'TIMESERIES')),
    units		varchar(32)		, -- physical units.  NULL when property is non-numeric or uniteless
    description		text		not null, -- paragraph describing the property

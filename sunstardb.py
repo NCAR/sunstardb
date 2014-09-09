@@ -190,10 +190,10 @@ class SunStarDB(Database):
         db_instrument = self.fetch_row(sql, kwargs)
         return db_instrument
 
-    @db_bind_keys('name', 'long', 'url', 'doc_url', 'description')
+    @db_bind_keys('name', 'long', 'url', 'description')
     def insert_instrument(self, **kwargs):
-        sql = """INSERT INTO instrument (name, long, url, doc_url, description)
-                      VALUES (%(name)s, %(long)s, %(url)s, %(doc_url)s, %(description)s)"""
+        sql = """INSERT INTO instrument (name, long, url, description)
+                      VALUES (%(name)s, %(long)s, %(url)s, %(description)s)"""
         self.execute(sql, kwargs)
         return self.fetch_instrument(kwargs)
 
@@ -253,10 +253,10 @@ class SunStarDB(Database):
         sql = """SELECT * FROM origin WHERE name=%(name)s"""
         return self.fetch_row(sql, kwargs)
 
-    @db_bind_keys('name', 'kind', 'url', 'doc_url', 'description')
+    @db_bind_keys('name', 'kind', 'url', 'description')
     def insert_origin(self, **kwargs):
-        sql = """INSERT INTO origin (name, kind, url, doc_url, description)
-                      VALUES (%(name)s, %(kind)s, %(url)s, %(doc_url)s, %(description)s)"""
+        sql = """INSERT INTO origin (name, kind, url, description)
+                      VALUES (%(name)s, %(kind)s, %(url)s, %(description)s)"""
         self.execute(sql, kwargs)
         return self.fetch_origin(kwargs)
 
