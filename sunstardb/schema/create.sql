@@ -1,47 +1,32 @@
 create table star
   (id			serial		not null,
-   canon		varchar(32)	not null, -- canonical name, one of the below, perhaps with prefix
-   hd			varchar(32)		, -- Henry Draper catalog name, Simbad 'HD'
-   bright		varchar(32)		, -- Simbad '*', bright star name: Bayer or Flamsteed
-   proper		varchar(32)		, -- Simbad 'NAME', proper name
+   name			varchar(32)	not null, -- canonical name, one of the below, perhaps with prefix
+   coord		varchar(32)	not null, -- ICRS coordinates, e.g. '06 45 08.91728 -16 42 58.0171'
+   ra			float		not null, -- Right Ascention in decimal degrees
+   dec			float		not null, -- Declination in decimal degrees
    insert_time		timestamp	not null default current_timestamp,
    --
    constraint pk_star
      primary key (id),
    --
-   constraint uq_star_canon
-     unique (canon),
-   -- 
-   constraint uq_star_hd
-     unique (hd),
-   --
-   constraint uq_proper
-     unique (bright),
-   --
-   constraint uq_bayer
-     unique (proper)
+   constraint uq_star_name
+     unique (name)
   );
 
-CREATE FUNCTION create_canon_name()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF (NEW.hd IS NOT NULL) THEN
-      NEW.canon := 'HD ' || NEW.hd;
-    ELSIF (NEW.bright IS NOT NULL) THEN
-      NEW.canon := NEW.bright;
-    ELSIF (NEW.proper IS NOT NULL) THEN
-      NEW.canon := NEW.proper;
-    ELSE
-      RAISE EXCEPTION 'No identifications provided for star.';
-    END IF;
-    RETURN NEW;
-END;
-$$  LANGUAGE plpgsql;
+create table star_alias
+  (star			integer		not null,
+   type			varchar(32)	not null, -- SIMBAD acronym
+   name			varchar(64)	not null, -- SIMBAD name
+   --
+   constraint uq_star_alias_name
+     unique (name),
+   --
+   constraint fk_star_alias_star
+     foreign key (star) references star (id)
+  );
 
-CREATE TRIGGER tg_star_canon
-    BEFORE INSERT ON star
-    FOR EACH ROW
-    EXECUTE PROCEDURE create_canon_name();
+create index ix_star_alias_star on star_alias (star);
+create index ix_star_alias_type on star_alias (type);
 
 -- Reference to published work using data and/or describing accumulation of it
 create table reference
@@ -77,8 +62,8 @@ create table origin
 -- Source of a stellar property data.  Data either comes from a data FILE or a CODE
 create table source
   (id			serial		not null,
+   name			varchar(64)	not null, -- source data package
    kind			varchar(32)	not null check (kind in ('FILE', 'CODE')),
-   url			varchar(1024)	not null, -- URL to the source file (ideally local with DB)
    version		varchar(32)	    	, -- version of the source (for CODE, possibly for FILE)
    origin		integer		not null, -- where this source originated
    source		integer			, -- source of the source, e.g. file input to code
@@ -89,7 +74,7 @@ create table source
      primary key (id),
    --
    constraint uq_source_url
-     unique (url, version),
+     unique (name, version),
    --
    constraint fk_source_origin
      foreign key (origin) references origin (id)
@@ -146,8 +131,8 @@ create table property
    --
    constraint uq_property
      unique (star, type, source),
-   -- for profile_map foreign key
-   constraint uq_property_profile
+   -- for dataset_map foreign key
+   constraint uq_property_dataset
      unique (id, star, type),
    --
    constraint fk_property_star
@@ -173,45 +158,44 @@ create index ix_property_source on property (source);
 create index ix_property_reference on property (reference);
 create index ix_property_instrument on property (instrument);
 
-
-create table profile
+create table dataset
   (id			serial		not null,
    name			varchar(64)	not null,
    description		text		not null,
    insert_time		timestamp	not null default current_timestamp,
    --
-   constraint pk_profile
+   constraint pk_dataset
      primary key (id),
    --
-   constraint uq_profile_name
+   constraint uq_dataset_name
      unique (name)
   );
 
-create table profile_map
-  (profile		integer		not null,
+create table dataset_map
+  (dataset		integer		not null,
    star			integer		not null,
    type			integer		not null,
    property		integer		not null,
    --
-   constraint pk_profile_map
-     primary key (profile, star, type),
+   constraint pk_dataset_map
+     primary key (dataset, star, type),
    --
-   constraint fk_profile_map_profile
-     foreign key (profile) references profile (id),
+   constraint fk_dataset_map_dataset
+     foreign key (dataset) references dataset (id),
    --
-   constraint fk_profile_map_star
+   constraint fk_dataset_map_star
      foreign key (star) references star (id),
    --
-   constraint fk_profile_map_type
+   constraint fk_dataset_map_type
      foreign key (type) references property_type (id),
    --
-   constraint fk_profile_map_property
+   constraint fk_dataset_map_property
      foreign key (property, star, type) references property (id, star, type)
   );
 
-create index ix_profile_map_star on profile_map (star);
-create index ix_profile_map_type on profile_map (type);
-create index ix_profile_map_property on profile_map (property);
+create index ix_dataset_map_star on dataset_map (star);
+create index ix_dataset_map_type on dataset_map (type);
+create index ix_dataset_map_property on dataset_map (property);
 
 create table timeseries
   (id			serial		not null,
