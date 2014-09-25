@@ -141,7 +141,13 @@ class TextDataReader(BaseDataReader):
             elif type.startswith('D'):
                 format = type[1:]
                 datestr = result[k].replace(' ','0')
-                result[k] = datetime.datetime.strptime(datestr, format)
+                try:
+                    result[k] = datetime.datetime.strptime(datestr, format)
+                except ValueError, e:
+                    # TODO: this is probably a bad idea.
+                    #  Return also an error dict showing which field parsed badly?
+                    #  Allowing the client to try to re-parse?
+                    result[k] = None
             else:
                 raise Exception('unknown type %s' % format)
         return result

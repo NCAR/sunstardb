@@ -27,6 +27,7 @@ create table star_alias
 
 create index ix_star_alias_star on star_alias (star);
 create index ix_star_alias_type on star_alias (type);
+create unique index uq_star_alias_lookup on star_alias (replace(name, ' ', ''));
 
 -- Reference to published work using data and/or describing accumulation of it
 create table reference
@@ -99,17 +100,17 @@ create table instrument
   );
 
 -- Data column descriptor
-create table property_type
+create table datatype
   (id			serial		not null,
    name			varchar(32)	not null, -- name of property, e.g. Pcyc
-   type			varchar(32)	not null check (type in ('MEASURE', 'LABEL', 'TIMESERIES')),
+   struct		varchar(32)	not null check (struct in ('MEASURE', 'LABEL', 'TIMESERIES')),
    units		varchar(32)		, -- physical units.  NULL when property is non-numeric or uniteless
    description		text		not null, -- paragraph describing the property
    --
-   constraint pk_property_type
+   constraint pk_datatype
      primary key (id),
    --
-   constraint uq_property_type_name
+   constraint uq_datatype_name
      unique (name)
   );
 
@@ -138,8 +139,8 @@ create table property
    constraint fk_property_star
      foreign key (star) references star (id),
    --
-   constraint fk_property_type
-     foreign key (type) references property_type (id),
+   constraint fk_datatype
+     foreign key (type) references datatype (id),
    --
    constraint fk_property_source
      foreign key (source) references source (id)
@@ -181,13 +182,14 @@ create table dataset_map
      primary key (dataset, star, type),
    --
    constraint fk_dataset_map_dataset
-     foreign key (dataset) references dataset (id),
+     foreign key (dataset) references dataset (id)
+     on delete cascade,
    --
    constraint fk_dataset_map_star
      foreign key (star) references star (id),
    --
    constraint fk_dataset_map_type
-     foreign key (type) references property_type (id),
+     foreign key (type) references datatype (id),
    --
    constraint fk_dataset_map_property
      foreign key (property, star, type) references property (id, star, type)
@@ -205,21 +207,25 @@ create table timeseries
    reference		integer		not null,
    instrument		integer			,
    insert_time		timestamp	not null default current_timestamp,
-   append_time		timestamp	not null,
-   meta			json		not null, -- meta information for the whole timeseries
-   meta_time		timestamp	not null,
+   append_time		timestamp	not null default current_timestamp,
+   meta			json		,                   -- meta information for the whole timeseries
+   meta_time		timestamp	not null default current_timestamp,
    --
    constraint pk_timeseries
      primary key (id),
    --
+   constraint uq_timeseries
+     unique (star, type, source),
+   --
    constraint fk_timeseries_star
      foreign key (star) references star (id),
    --
-   constraint fk_timeseries_type
-     foreign key (type) references property_type (id),
+   constraint fk_timeseries_datatype
+     foreign key (type) references datatype (id),
    --
    constraint fk_timeseries_source
-     foreign key (source) references source (id),
+     foreign key (source) references source (id)
+     on delete cascade,
    --
    constraint fk_timeseries_reference
      foreign key (reference) references reference (id),
@@ -229,7 +235,7 @@ create table timeseries
   );
 
 create index ix_timeseries_star on timeseries (star);
-create index ix_timeseries_type on timeseries (type);
+create index ix_datatype on timeseries (type);
 create index ix_timeseries_source on timeseries (source);
 create index ix_timeseries_reference on timeseries (reference);
 create index ix_timeseries_instrument on timeseries (instrument);
@@ -247,7 +253,8 @@ create table dat_%(name)s
    errhi		double precision	,
    errbounds		numrange		,
    obs_time		timestamp		,
-   int_time		tsrange			,
+   obs_dur		integer			,
+   obs_range		tsrange			,
    meta			json			,
    meta_time		timestamp		not null default current_timestamp,
    --
@@ -268,10 +275,11 @@ create table dat_%(name)s
      foreign key (star) references star (id),
    --
    constraint fk_dat_%(name)s_type
-     foreign key (type) references property_type (id),
+     foreign key (type) references datatype (id),
    --
    constraint fk_dat_%(name)s_source
      foreign key (source) references source (id)
+     on delete cascade
   );
 </MEASURE>
 
@@ -302,20 +310,23 @@ create table dat_%(name)s
      foreign key (star) references star (id),
    --
    constraint fk_dat_%(name)s_type
-     foreign key (type) references property_type (id),
+     foreign key (type) references datatype (id),
    --
    constraint fk_dat_%(name)s_source
      foreign key (source) references source (id)
+     on delete cascade
   );
 </LABEL>
 
 <TIMESERIES>
-create table ser_%(name)s
+create table dat_%(name)s
   (timeseries		integer			not null,
    star			integer			not null,
    type			integer			not null default %(id)s check (type = %(id)s),
    source		integer			not null,
-   obs_time		timestamp		not null,
+   obs_time		timestamp		not null, -- BJD at the START of observations
+   obs_dur		integer			,         -- duration of observation in seconds
+   obs_range		tsrange			,
    %(name)s		double precision	not null,
    errlo		double precision	,
    errhi		double precision	,
@@ -324,27 +335,28 @@ create table ser_%(name)s
    meta			json			,
    meta_time		timestamp		not null default current_timestamp,
    --
-   constraint pk_ser_%(name)s
+   constraint pk_dat_%(name)s
      primary key (timeseries, obs_time),
    --
-   constraint uq_ser_%(name)s_property_integ
-     unique (star, type, source),
+   constraint uq_dat_%(name)s_timeseries_integ
+     unique (star, type, source, obs_time),
    --
-   constraint fk_ser_%(name)s_property
-     foreign key (property) references timeseries (id)
+   constraint fk_dat_%(name)s_timeseries
+     foreign key (timeseries) references timeseries (id)
      on delete cascade,
    --
-   constraint fk_ser_%(name)s_property_integ
+   constraint fk_dat_%(name)s_timeseries_integ
      foreign key (star, type, source) references timeseries (star, type, source),
    --
-   constraint fk_ser_%(name)s_star
+   constraint fk_dat_%(name)s_star
      foreign key (star) references star (id),
    --
-   constraint fk_ser_%(name)s_type
-     foreign key (type) references property_type (id),
+   constraint fk_dat_%(name)s_type
+     foreign key (type) references datatype (id),
    --
-   constraint fk_ser_%(name)s_source
+   constraint fk_dat_%(name)s_source
      foreign key (source) references source (id)
+     on delete cascade
   );
 </TIMESERIES>
 

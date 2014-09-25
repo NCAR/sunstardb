@@ -12,14 +12,14 @@ file = args[0]
 print "Loading %s," % (file), 
 fp = open(file)
 js = json.load(fp)
-types = js['property_types']
-print len(types), "property types in file."
+types = js['datatypes']
+print len(types), "datatypes in file."
 
-print "Inserting property types into database."
+print "Inserting datatypes into database."
 for t in types:
-    if db.fetch_property_type(t) is None:
-        print "Inserting type:", t['name']
-        db.insert_property_type(t)
+    if db.fetch_datatype(t) is None:
+        print "Inserting datatype:", t['name']
+        db.insert_datatype(t)
     else:
         print t['name'], "already exists... skipping"
 

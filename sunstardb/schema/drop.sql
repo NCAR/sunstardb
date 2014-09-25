@@ -2,7 +2,7 @@ drop table timeseries;
 drop table dataset_map;
 drop table dataset;
 drop table property;
-drop table property_type;
+drop table datatype;
 drop table instrument;
 drop table source;
 drop table origin;
