@@ -305,6 +305,32 @@ class Database():
         result = self.execute(sql, binds)
         return self.column(result, col)
 
+    def insert_returning(self, sql, binds = None):
+        """For sql of the type 'INSERT ... RETURINING *', returns first (only) row of output
+
+        Inputs:
+         - sql <str>    : an SQL statement
+         - binds <dict> : bind parametrs to use for the sql
+
+        Output:
+         - <object> : RowProxy object, the first row of 'result'
+        """
+        result = self.execute(sql, binds)
+        return self.row(result)
+
+    def insert_returning_id(self, sql, binds = None):
+        """For sql of the type 'INSERT ... RETURINING id', returns first (only) scalar of output
+
+        Inputs:
+         - sql <str>    : an SQL statement
+         - binds <dict> : bind parametrs to use for the sql
+
+        Output:
+         - <object> : RowProxy object, the first row of 'result'
+        """
+        result = self.execute(sql, binds)
+        return self.scalar(result)
+        
     def build_filter(self):
         """TODO: implement function to help building a WHERE clause +
         bind params
