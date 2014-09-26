@@ -31,6 +31,7 @@ print "Inserting source '%s'" % dataobj.source['name']
 db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
 
 print "Inserting data..."
+utils.time_reset()
 star_cache = {}
 type_cache = {}
 n_data = 0
@@ -63,7 +64,8 @@ for datum in dataobj.data():
     n_data += 1
 
 n_stars = len(star_cache)
-print "Inserted %i data points for %i stars (%i new)" % (n_data, n_stars, newstars)
+print "Inserted %i data points for %i stars (%i new)" % (n_data, n_stars, newstars),
+print "in %0.3f seconds" % utils.time_total()
 
 print "Creating dataset for source '%s'" % db_source['name']
 db.create_dataset_from_source(db_source)
