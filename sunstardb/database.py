@@ -412,7 +412,7 @@ class SunStarDB(Database):
             obj[key] = input['id']
 
     def prepare_err(self, obj):
-        if 'err' in obj:
+        if obj.get('err') is not None:
             # Case where error is expressed as a percent
             if isinstance(obj['err'], basestring) and obj['err'].endswith('%'):
                 obj['err'] = abs(obj['val']) * float(obj['err'].rstrip('%')) / 100.0
@@ -427,6 +427,10 @@ class SunStarDB(Database):
             lo = obj['val'] - obj['errlo']
             hi = obj['val'] + obj['errhi']
             obj['errbounds'] = psycopg2.extras.NumericRange(lo, hi, '[]')
+
+    def prepare_time(self, obj):
+        if obj.get('obs_range') is not None:
+            obj['obs_range'] = psycopg2.extras.DateTimeRange(obj['obs_range'][0], obj['obs_range'][1], '[)')
 
     def insert_datum(self, datum, star, datatype, source, reference, instrument=None):
         datum = self.prepare_datum(datum, star, datatype, source, reference, instrument=instrument)
@@ -464,6 +468,9 @@ class SunStarDB(Database):
 
         # Set err
         self.prepare_err(datum)
+
+        # Set timestamps
+        self.prepare_time(datum)
 
         # Explicit None for all NULLable columns
         for col in ('inst_id', 'errlo', 'errhi', 'errbounds', 'obs_time', 'obs_dur', 'obs_range', 'meta'):
