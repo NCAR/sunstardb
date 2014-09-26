@@ -236,6 +236,8 @@ class SunStarDB(Database):
                         (SELECT id FROM datatype WHERE name = %(name)s)""", kwargs)
         self.execute("""DELETE FROM property WHERE type IN
                         (SELECT id FROM datatype WHERE name = %(name)s)""", kwargs)
+        self.execute("""DELETE FROM timeseries WHERE type IN
+                        (SELECT id FROM datatype WHERE name = %(name)s)""", kwargs)
         self.execute("DELETE FROM datatype WHERE name = %(name)s", kwargs)
         self.execute("DROP TABLE dat_%(name)s" % kwargs) # TODO: check arg
 
@@ -401,15 +403,30 @@ class SunStarDB(Database):
         db_property = self.fetch_row(sql, kwargs)
         return db_property
 
-    def prepare_id(self, key, input, method, obj):
-        """Set obj[key] = input['id'], or fetch new object from DB with [method] if 'id' not in [input]"""
+    # TODO: candidate for sqlhappy?
+    def attach_result(self, key, input, method, obj, attach=True, setid=False):
+        """Set obj[key] = input if 'id' in input, else fetch new result from DB with method(input)
+
+        attach may be set to a string, in that case the result is attached to obj[attach][key]
+        
+        if setid is True, then obj[key+'_id'] = result['id'] as well.
+        attach may be set to None in which case only setid will be done.
+        """
+        db_obj = None
         if 'id' not in input:
             db_obj = method(input)
             if db_obj is None:
                 raise MissingDataError("Could not set fetch data with '%s' using '%s'" % (str(method), str(input)))
-            obj[key] = db_obj['id']
         else:
-            obj[key] = input['id']
+            db_obj = input
+        if setid:
+            obj[key+'_id'] = input['id']
+        if attach is not None:
+            if attach is True:
+                obj[key] = db_obj
+            elif isinstance(attach, basestring):
+                obj.setdefault(attach, {})
+                obj[attach][key] = db_obj
 
     def prepare_err(self, obj):
         if obj.get('err') is not None:
@@ -459,12 +476,12 @@ class SunStarDB(Database):
         using the 'name' key.
         """
         # Set id for sub-objects
-        self.prepare_id('star_id', star, self.fetch_star, datum)
-        self.prepare_id('type_id', datatype, self.fetch_datatype, datum)
-        self.prepare_id('src_id', source, self.fetch_source, datum)
-        self.prepare_id('ref_id', reference, self.fetch_reference, datum)
+        self.attach_result('star', star, self.fetch_star, datum, attach='ref', setid=True)
+        self.attach_result('type', datatype, self.fetch_datatype, datum, attach='ref', setid=True)
+        self.attach_result('src', source, self.fetch_source, datum, attach='ref', setid=True)
+        self.attach_result('ref', reference, self.fetch_reference, datum, attach='ref', setid=True)
         if instrument is not None:
-            self.prepare_id('inst_id', reference, self.fetch_instrument, datum)
+            self.attach_result('inst', instrument, self.fetch_instrument, datum, attach='ref', setid=True)
 
         # Set err
         self.prepare_err(datum)
@@ -487,11 +504,11 @@ class SunStarDB(Database):
         """
         sql = """INSERT INTO property (star, type, source, reference, instrument)
                       VALUES (%(star_id)s, %(type_id)s, %(src_id)s, %(ref_id)s, %(inst_id)s)
+                      RETURNING *
                """
-        self.execute(sql, kwargs)
-        db_prop = self.fetch_property_by_id(kwargs) # TODO: this fetch should contain datatype.{type, name}
-        db_type = self.fetch_datatype_by_id(kwargs) #  to eliminate this fetch...
+        db_prop = self.insert_returning(sql, kwargs)
         kwargs['prop_id'] = db_prop['id']
+        db_type = kwargs['ref']['type']
         kwargs['name'] = db_type['name']
         if db_type['struct'] == 'MEASURE':
             self.insert_measure(kwargs)
