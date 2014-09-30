@@ -646,7 +646,7 @@ class SunStarDB(Database):
         sql = """SELECT s.id star_id, s.hd, s.bright, s.proper,
                         r.name reference, o.name origin, o.kind origin_kind, i.name instrument,
                         p.id prop_id, d.%(datatype)s
-                   FROM %(datatype)s d
+                   FROM dat_%(datatype)s d
                    JOIN property p ON p.id = d.property
                    JOIN star s ON s.id = p.star
                    JOIN reference r ON r.id = p.reference
@@ -723,13 +723,15 @@ class SunStarDB(Database):
         """
 
         result = self.fetch_data_table(dataset, datatypes, nulls=nulls)
+        return self.list_to_columns(result)
+
+    def fetch_timeseries(self, datatype, star, datasets=None):
+        sql = """SELECT obs_time, %s 
+                 FROM dat_%s d
+                 JOIN star_alias sa ON sa.star = d.star
+                WHERE replace(sa.name, ' ', '') = replace(%%(star)s, ' ', '')""" % (datatype, datatype)
+        result = self.fetchall_columns(sql, {'star':star})
         if result is None:
-            return None
-        cols = {}
-        col_list = ['star'] + datatypes
-        for c in col_list:
-            cols[c] = []
-        for row in result:
-            for c in col_list:
-                cols[c].append(row[c.lower()])
-        return cols
+            return None, None
+        else:
+            return result['obs_time'], result[datatype.lower()]

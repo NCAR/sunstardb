@@ -220,6 +220,37 @@ class Database():
         result.close()
         return tuple_list
 
+    def list_to_columns(self, result):
+        """Turn an result list to a dict of lists (columns)
+        Input:
+         - results <list> : list of ResultProxy objects
+         - names <list> : list of column names
+        
+        """
+        if result is None:
+            return None
+        col_list = result[0].keys()
+        cols = {}
+        for c in col_list:
+            cols[c] = []
+        for row in result:
+            for c in col_list:
+                cols[c].append(row[c])
+        return cols
+
+    def fetchall_columns(self, sql, binds = None):
+        """Return sql query as a dict of lists
+
+        Input:
+         - sql <string> : SELECT statement to execute
+         - binds <dict> : optional bind parameters
+         
+        Output:
+         - <dict> : a dict of columns identified by name
+        """
+        result = self.fetchall(sql, binds)
+        return self.list_to_columns(result)
+
     def row(self, result):
         """Return the first row of a result set
 

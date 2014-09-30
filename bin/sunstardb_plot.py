@@ -11,29 +11,37 @@ import plothappy
 
 (options, args, db) = SunStarDB.cli_connect()
 
-command, dataset, ptypes = args[0], args[1], args[2:]
-
 def no_data_exit():
     print "No data for dataset '%s'" % dataset
     exit()
 
+command = args[0]
 if command == 'print':
-    data = db.fetch_data_table(dataset, ptypes, nulls=True)
+    dataset, types = args[1], args[2:]
+    data = db.fetch_data_table(dataset, types, nulls=True)
     if data is None:
         no_data_exit()
-    print "\t".join( ['star'] + ptypes )
+    print "\t".join( ['star'] + types )
     for row in data:
         print "\t".join( str(v) for v in row.values() )
 elif command == 'scatter':
-    x, y = ptypes[0:2]
+    dataset, types = args[1], args[2:]
+    x, y = types[0:2]
     data = db.fetch_data_cols(dataset, [x, y], nulls=False)
     if data is None:
         no_data_exit()
     plothappy.show_scatter(data[x], data[y], "%s vs %s" % (x, y),
                           xlabel=x, ylabel=y, s=10)
 elif command == 'hist':
-    x = ptypes[0]
+    dataset, types = args[1], args[2:]
+    x = types[0]
     data = db.fetch_data_cols(dataset, [x], nulls=False)
     if data is None:
         no_data_exit()
     plothappy.show_hist(data[x], x)
+elif command == 'timeseries':
+    type, star = args[1], args[2]
+    datasets = args[3:] if len(args) > 3 else None
+        
+    times, data = db.fetch_timeseries(type, star, datasets)
+    plothappy.show_scatter(times, data, "%s %s" % (star, type), xlabel='Time', ylabel=type, s=10)
