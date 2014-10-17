@@ -4,6 +4,7 @@ import json
 import sys
 import os
 import os.path
+import numpy
 
 from sunstardb.database import SunStarDB
 from sunstardb import utils
@@ -27,11 +28,20 @@ if command == 'print':
 elif command == 'scatter':
     dataset, types = args[1], args[2:]
     x, y = types[0:2]
-    data = db.fetch_data_cols(dataset, [x, y], nulls=False)
+    data = db.fetch_data_cols(dataset, [x, y], nulls=False, errors=True)
     if data is None:
         no_data_exit()
-    plothappy.show_scatter(data[x], data[y], "%s vs %s" % (x, y),
-                          xlabel=x, ylabel=y, s=10)
+    # replace None in error columns with numpy nan
+    # TODO: numpy conversion functions in database package? utils?
+    for hilo in ['errhi_', 'errlo_']:
+        for axis in [x, y]:
+            col = hilo + axis
+            data[col] = numpy.array(data[col], dtype=numpy.float)
+    plothappy.show_plot(data[x], data[y], "%s vs %s" % (x, y),
+                        xlabel=x, ylabel=y,
+                        xerr=[data['errlo_'+x], data['errhi_'+x]],
+                        yerr=[data['errlo_'+y], data['errhi_'+y]],
+                        )
 elif command == 'hist':
     dataset, types = args[1], args[2:]
     x = types[0]
@@ -43,5 +53,8 @@ elif command == 'timeseries':
     type, star = args[1], args[2]
     datasets = args[3:] if len(args) > 3 else None
         
-    times, data = db.fetch_timeseries(type, star, datasets)
-    plothappy.show_scatter(times, data, "%s %s" % (star, type), xlabel='Time', ylabel=type, s=10)
+    times, data, errlo, errhi = db.fetch_timeseries(type, star, datasets)
+    plothappy.show_plot(times, data,
+                        "%s %s" % (star, type), xlabel='Time', ylabel=type,
+                        yerr=[errlo, errhi]
+                        )

@@ -36,52 +36,20 @@ def show_hist(data, filename, legend=False, **kwargs):
     pyplot.close(fig)
     return "<screen>"
 
-def save_hist(data, filename, savedir='.', **kwargs):
+def save_hist(data, filename, savedir='.', savefig={}, **kwargs):
     """Save a histogram"""
     fig = make_hist(data, filename, **kwargs)
     filepath = prep_filepath(filename, savedir)
-    pyplot.savefig(filepath)
-    pyplot.close(fig)
-    return filepath
+    return save(fig, filename, savedir, savefig, **kwargs)
 
-def make_scatter(x, y, filename,
-              title=None, xlabel=None, ylabel=None,
-              facecolor='black', s=2, lw=0, alpha=1.0):
-    """Make a scatter plot"""
-    if title is None:
-        title = filename
-    if ylabel is None:
-        ylabel = filename
-    fig = pyplot.figure()
-    ax = fig.gca()
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    pyplot.scatter(x, y, s=s, facecolor=facecolor, lw=lw)
-    return fig
-
-def show_scatter(x, y, filename, **kwargs):
-    """show a scatter plot"""
-    fig = make_scatter(x, y, filename, **kwargs)
-    pyplot.show()
-    pyplot.close(fig)
-    return "<screen>"
-
-def save_scatter(x, y, filename, savedir='.', **kwargs):
-    """Save a scatter plot"""
-    fig = make_scatter(x, y, filename, **kwargs)
-    filepath = prep_filepath(filename, savedir)
-    pyplot.savefig(filepath)
-    pyplot.close(fig)
-    return filepath
-
-def make_line(x, y, filename,
+def make_plot(x, y, filename,
+              xerr=None, yerr=None,
               fig=None,
               xlog=False, ylog=False,
               xlim=None, ylim=None,
               title=None, xlabel=None, ylabel=None,
               fontsize='medium',
-              color='black', lw=1, alpha=1.0,
+              color='black', lw=0, marker='o', ms=3,
               figure={},
               margins=None,
               minorticks=False,
@@ -91,7 +59,10 @@ def make_line(x, y, filename,
               tight_layout={},
               **kwargs
               ):
-    """Make a line plot"""
+    """Make a plot"""
+    # Note: Order or execution matters on some of these settings.
+
+    # Figure titles and labels
     if fig is None:
         fig = pyplot.figure(**figure)
         ax = fig.gca()
@@ -103,12 +74,18 @@ def make_line(x, y, filename,
         ax.set_ylabel(ylabel, fontsize=fontsize)
     else:
         ax = fig.gca()
+
+    # Figure scale
     if xlog:
         ax.set_xscale('log')
     if ylog:
         ax.set_yscale('log')
+
+    # Figure margins
     if margins:
         pyplot.margins(*margins)
+        
+    # Figure ticks and grids
     if minorticks:
         ax.minorticks_on()
     if tick_params:
@@ -122,28 +99,40 @@ def make_line(x, y, filename,
     if ygrid:
         ygrid['b'] = True
         ax.yaxis.grid(**ygrid)
+
     if subplots_adjust:
         pyplot.subplots_adjust(**subplots_adjust)
     if xlabel:
         ax.set_xlabel(xlabel, fontsize=fontsize)
-    pyplot.plot(x, y, color=color, lw=lw, **kwargs)
+
+    # Plot
+    pyplot.plot(x, y, color=color, lw=lw, marker=marker, ms=ms, **kwargs)
+
+    # Plot limits
     if xlim:
         ax.set_xlim(*xlim)
     if ylim:
         ax.set_ylim(*ylim)
-    pyplot.tight_layout(**tight_layout)
+
+    # Error bars
+    if xerr is not None or yerr is not None:
+        pyplot.errorbar(x, y, xerr=xerr, yerr=yerr, ecolor=color, fmt=None)
+
+    # Layout
+    if tight_layout:
+        pyplot.tight_layout(**tight_layout)
     return fig
 
-def show_line(x, y, filename, **kwargs):
+def show_plot(x, y, filename, **kwargs):
     """Show a line plot"""
-    fig = make_line(x, y, filename, **kwargs)
+    fig = make_plot(x, y, filename, **kwargs)
     pyplot.show()
     pyplot.close(fig)
     return "<screen>"
 
-def save_line(x, y, filename, savedir='.', savefig={}, **kwargs):
+def save_plot(x, y, filename, savedir='.', savefig={}, **kwargs):
     """Save a scatter plot"""
-    fig = make_line(x, y, filename, **kwargs)
+    fig = make_plot(x, y, filename, **kwargs)
     return save(fig, filename, savedir, savefig, **kwargs)
     
 

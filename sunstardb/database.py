@@ -645,7 +645,7 @@ class SunStarDB(Database):
         
         sql = """SELECT s.id star_id, s.hd, s.bright, s.proper,
                         r.name reference, o.name origin, o.kind origin_kind, i.name instrument,
-                        p.id prop_id, d.%(datatype)s
+                        p.id prop_id, d.%(datatype) "%(datatype)s"
                    FROM dat_%(datatype)s d
                    JOIN property p ON p.id = d.property
                    JOIN star s ON s.id = p.star
@@ -657,7 +657,7 @@ class SunStarDB(Database):
         result = self.fetchall(sql % datatype)
         return result
 
-    def fetch_data_table(self, dataset, datatypes, nulls=True):
+    def fetch_data_table(self, dataset, datatypes, nulls=True, errors=False):
         """Fetch star names and data as a table for the given dataset
 
         Inputs:
@@ -679,6 +679,8 @@ class SunStarDB(Database):
         # XXX TODO: protect against using timeseries data types here,
         #           or, provide subqueries which turn timeseries into scalars
         ixs = range(len(datatypes))
+
+        # Define source sub-tables
         sql = "WITH "
         for i in ixs:
             sql += """d%02i AS (
@@ -689,8 +691,16 @@ class SunStarDB(Database):
             """ % (i, datatypes[i])
         sql += "uq_stars AS ( "
         sql += " UNION ".join( "SELECT star FROM d%02i" % i for i in ixs)
+
+        # Output columns
+        # TODO: "errors" assumes all columns are MEASURE types... check datatype table instead
         sql += ") SELECT s.name star, "
-        sql += ", ".join( "d%02i.%s" % (i, datatypes[i]) for i in ixs )
+        col_pattern = "d%(index)02i.%(name)s \"%(name)s\"" # preserve case in output columns
+        if errors:
+            col_pattern += ", d%(index)02i.errlo \"errlo_%(name)s\", d%(index)02i.errhi \"errhi_%(name)s\""
+        sql += ", ".join( col_pattern % dict(index=i, name=datatypes[i]) for i in ixs )
+
+        # Source sub-tables
         sql += " FROM uq_stars us JOIN star s ON s.id = us.star"
         if nulls is True:
             jointype = "LEFT JOIN"
@@ -703,7 +713,7 @@ class SunStarDB(Database):
         result = self.fetchall(sql, { 'dataset' : dataset})
         return result
 
-    def fetch_data_cols(self, dataset, datatypes, nulls=True):
+    def fetch_data_cols(self, dataset, datatypes, nulls=True, errors=False):
         """Fetch a data table as a dictionary of columns
 
         Inputs:
@@ -722,16 +732,16 @@ class SunStarDB(Database):
           { 'datatype1' : [ 1, 2, 3, ... ], 'datatype2' : [ 1, 2, 3 ], ... }
         """
 
-        result = self.fetch_data_table(dataset, datatypes, nulls=nulls)
+        result = self.fetch_data_table(dataset, datatypes, nulls=nulls, errors=errors)
         return self.list_to_columns(result)
 
     def fetch_timeseries(self, datatype, star, datasets=None):
-        sql = """SELECT obs_time, %s 
-                 FROM dat_%s d
+        sql = """SELECT obs_time, %(name)s \"%(name)s\", errlo, errhi
+                 FROM dat_%(name)s d
                  JOIN star_alias sa ON sa.star = d.star
-                WHERE replace(sa.name, ' ', '') = replace(%%(star)s, ' ', '')""" % (datatype, datatype)
+                WHERE replace(sa.name, ' ', '') = replace(%%(star)s, ' ', '')""" % dict(name=datatype)
         result = self.fetchall_columns(sql, {'star':star})
         if result is None:
             return None, None
         else:
-            return result['obs_time'], result[datatype.lower()]
+            return result['obs_time'], result[datatype], result['errlo'], result['errhi']
