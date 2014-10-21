@@ -13,6 +13,8 @@ create table star
      unique (name)
   );
 
+create index ix_star_q3c ON star (q3c_ang2ipix(ra, dec));
+
 create table star_alias
   (star			integer		not null,
    type			varchar(32)	not null, -- SIMBAD acronym
