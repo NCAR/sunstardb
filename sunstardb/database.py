@@ -745,3 +745,29 @@ class SunStarDB(Database):
             return None, None
         else:
             return result['obs_time'], result[datatype], result['errlo'], result['errhi']
+
+    def fetch_boxmatch(self, dataset, skycoord, ra_side, dec_side=None, orient='center'):
+        """Search dataset for stars falling in a box near to skycoord"""
+        if dec_side is None:
+            dec_side = ra_side
+
+        if orient == 'center':
+            box = { 'ra_min' : skycoord.ra.degree - ra_side/2.0,
+                    'ra_max' : skycoord.ra.degree + ra_side/2.0,
+                    'dec_min' : skycoord.dec.degree - dec_side/2.0,
+                    'dec_max' : skycoord.dec.degree + dec_side/2.0 }
+        else:
+            raise Exception("invalid orientation '%s'" % orient)
+        
+        sql = """SELECT DISTINCT s.name, s.ra, s.dec
+                   FROM dataset ds
+                   JOIN dataset_map dm ON dm.dataset = ds.id
+                   JOIN star s ON s.id = dm.star
+                  WHERE ds.name = %(dataset)s
+                    AND q3c_poly_query(s.ra, s.dec,
+                                      '{%(ra_max)s, %(dec_max)s,
+                                       %(ra_max)s, %(dec_min)s,
+                                       %(ra_min)s, %(dec_min)s,
+                                       %(ra_min)s, %(dec_max)s}')"""
+        result = self.fetchall(sql, dict({'dataset':dataset}.items() + box.items()))
+        return result

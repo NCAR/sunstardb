@@ -1,6 +1,7 @@
 import os
 import re
 import datetime
+import astropy.coordinates
 
 def modification_date(filename):
     t = os.path.getmtime(filename)
@@ -33,3 +34,23 @@ def time_total():
     t = datetime.datetime.now()
     elapsed = (t - FIRST_TIME).total_seconds()
     return elapsed
+
+def parse_skycoord(ra, dec=None, frame='icrs'):
+    # possible input formats:
+    # 'hh:mm:ss', '+dd:mm:ss'
+    # 'hh:mm:ss +dd:mm:ss'
+    # 'hh mm ss +dd mm ss'
+    if dec is None:
+        a = ra.split(' ')
+        if len(a) == 2:
+            ra = a[0]
+            dec = a[1]
+        elif len(a) == 6:
+            ra = ' '.join(a[0:3])
+            dec = ' '.join(a[3:])
+
+    skycoord = astropy.coordinates.SkyCoord(ra, dec, frame='icrs',
+                                            unit=(astropy.units.hourangle,
+                                                  astropy.units.degree))
+    return skycoord
+    
