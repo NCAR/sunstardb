@@ -115,8 +115,10 @@ def make_plot(x, y, filename,
         ax.set_ylim(*ylim)
 
     # Error bars
-    if xerr is not None or yerr is not None:
-        pyplot.errorbar(x, y, xerr=xerr, yerr=yerr, ecolor=color, fmt=None)
+    if xerr is not None:
+        pyplot.errorbar(x, y, xerr=xerr, ecolor=color, fmt=None)
+    if yerr is not None:
+        pyplot.errorbar(x, y, yerr=yerr, ecolor=color, fmt=None)
 
     # Layout
     if tight_layout:
