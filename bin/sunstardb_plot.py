@@ -12,8 +12,9 @@ import plothappy
 
 (options, args, db) = SunStarDB.cli_connect()
 
-def no_data_exit():
-    print "No data for dataset '%s'" % dataset
+def no_data_exit(**input):
+    input = ["%s='%s'" % (k, v) for k, v in input.items()]
+    print "No data for", ", ".join(input)
     exit()
 
 command = args[0]
@@ -51,10 +52,11 @@ elif command == 'hist':
     plothappy.show_hist(data[x], x)
 elif command == 'timeseries':
     type, star = args[1], args[2]
-    datasets = args[3:] if len(args) > 3 else None
-        
-    times, data, errlo, errhi = db.fetch_timeseries(type, star, datasets)
-    plothappy.show_plot(times, data,
+    source = args[3] if len(args) > 3 else None
+    result = db.fetch_timeseries(type, star, source)
+    if result is None:
+        no_data_exit(source=source)
+    plothappy.show_plot(result['obs_time'], result[type],
                         "%s %s" % (star, type), xlabel='Time', ylabel=type,
-                        yerr=[errlo, errhi]
+                        yerr=[result['errlo'], result['errhi']]
                         )

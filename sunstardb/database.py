@@ -151,7 +151,7 @@ class MissingDataError(Exception):
     """Error raised when data expected to be present in database is not found"""
     pass
 
-def db_bind_keys(*reqkeys):
+def db_bind_keys(*bind_reqkeys, **bind_kwargs):
     """
     Decorator for functions which take database column key-value pairs as arguments.
 
@@ -169,16 +169,23 @@ def db_bind_keys(*reqkeys):
     def wrap(f):
         @wraps(f)
         def wrapped_f(self, *args, **kwargs):
+            # Substitute kwargs for dict in first argument
             if len(args) == 1:
                 kwargs = args[0] # Assumed to be dict-like. TODO: check?
+
+            # Check for required keys
             misslist = []
-            for req in reqkeys:
+            for req in bind_reqkeys:
                 if req not in kwargs:
                     misslist.append(req)
             if len(misslist) > 0:
                 raise DatabaseKeyError(misslist, kwargs.keys())
-            else:
-                return f(self, **kwargs)
+
+            # Set optional keys to 'None'
+            if bind_kwargs.get('optional'):
+                for opt in bind_kwargs['optional']:
+                    kwargs.setdefault(opt, None)
+            return f(self, **kwargs)
         return wrapped_f
     return wrap
 
@@ -332,7 +339,7 @@ class SunStarDB(Database):
         sql = """SELECT * FROM origin WHERE name=%(name)s"""
         return self.fetch_row(sql, kwargs)
 
-    @db_bind_keys('name', 'kind', 'url', 'description')
+    @db_bind_keys('name', 'kind', 'description', optional=['url'])
     def insert_origin(self, **kwargs):
         """Insert an origin given (name, kind, url, description)"""
         sql = """INSERT INTO origin (name, kind, url, description)
@@ -449,6 +456,11 @@ class SunStarDB(Database):
         if obj.get('obs_range') is not None:
             obj['obs_range'] = psycopg2.extras.DateTimeRange(obj['obs_range'][0], obj['obs_range'][1], '[)')
 
+    def explicit_null(self, obj, *colnames):
+        for col in colnames:
+            if col not in obj:
+                obj[col] = None
+
     def insert_datum(self, datum, star, datatype, source, reference, instrument=None):
         datum = self.prepare_datum(datum, star, datatype, source, reference, instrument=instrument)
         
@@ -490,9 +502,9 @@ class SunStarDB(Database):
         self.prepare_time(datum)
 
         # Explicit None for all NULLable columns
-        for col in ('inst_id', 'errlo', 'errhi', 'errbounds', 'obs_time', 'obs_dur', 'obs_range', 'meta'):
-            if col not in datum:
-                datum[col] = None
+        self.explicit_null(datum, 'inst_id', 'errlo', 'errhi', 'errbounds', 
+                                   'obs_time', 'obs_dur', 'obs_range',
+                                   'meta')
 
         return datum
     
@@ -640,6 +652,20 @@ class SunStarDB(Database):
         else:
             return True
 
+    def fetchall_astropy(self, sql, binds = None, dtype=None):
+        """Return all results of an SQL query as an astropy.table.Table, or None
+
+        Input:
+         - sql <string> : SELECT statement to execute
+         - binds <dict> : optional bind parameters
+         
+        Output:
+         - <Table> : table of results
+        """
+        result, colnames = self.fetchall(sql, binds, colnames = True)
+        table = astropy.table.Table(rows=result, names=colnames, dtype=dtype)
+        return table
+
     def fetch_data(self, datatype):
         """Fetch data and all associated info for the given datatype"""
         
@@ -735,16 +761,21 @@ class SunStarDB(Database):
         result = self.fetch_data_table(dataset, datatypes, nulls=nulls, errors=errors)
         return self.list_to_columns(result)
 
-    def fetch_timeseries(self, datatype, star, datasets=None):
+    def fetch_timeseries(self, datatype, star, source=None):
         sql = """SELECT obs_time, %(name)s \"%(name)s\", errlo, errhi
                  FROM dat_%(name)s d
-                 JOIN star_alias sa ON sa.star = d.star
-                WHERE replace(sa.name, ' ', '') = replace(%%(star)s, ' ', '')""" % dict(name=datatype)
-        result = self.fetchall_columns(sql, {'star':star})
-        if result is None:
-            return None, None
-        else:
-            return result['obs_time'], result[datatype], result['errlo'], result['errhi']
+                 JOIN star_alias sa ON sa.star = d.star\n""" % dict(name=datatype)
+        if source is not None:
+            sql += "JOIN source src ON src.id = d.source"
+        where = "replace(sa.name, ' ', '') = replace(%(star)s, ' ', '')"
+        binds = {'star':star}
+        if source is not None:
+            where += " AND src.name = %(source)s"
+            binds['source'] = source
+        sql += " WHERE " + where
+
+        result = self.fetchall_astropy(sql, binds, dtype=('object', 'f', 'f', 'f'))
+        return result
 
     def fetch_boxmatch(self, dataset, skycoord, ra_side, dec_side=None, orient='center'):
         """Search dataset for stars falling in a box near to skycoord"""
