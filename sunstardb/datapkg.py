@@ -3,6 +3,7 @@ import os.path
 import json
 import importlib
 import datetime
+import re
 
 from . import utils
 
@@ -60,6 +61,15 @@ class BaseDataReader(object):
             return None
         else:
             return filepath
+
+    def listdir(self, dirname):
+        """Return a list of filepaths for files in the given subdirectory"""
+        dirpath = os.path.join(self.dir, dirname)
+        if os.path.isdir(dirpath):
+            files = [ os.path.join(dirpath, f) for f in os.listdir(dirpath)]
+            return files
+        else:
+            raise Exception("Directory '%s' does not exist" % dirpath)
 
     def data(self):
         """Return a generator object for sunstardb insert objects
@@ -126,30 +136,50 @@ class BaseDataReader(object):
         return self.extras
 
 class TextDataReader(BaseDataReader):
-    def byteparse(self, line, **spec):
-        line = line.rstrip('\n')
-        result = {}
-        for k in spec:
-            (initial, final, type) = spec[k]
-            result[k] = line[initial:final]
-            if type == 's':
+    def typecast(self, obj, typemap):
+        for k, typecode in typemap.items():
+            if typecode == 's':
                 pass
-            elif type == 'i':
-                result[k] = int(result[k].strip())
-            elif type == 'f':
-                result[k] = float(result[k].strip())
-            elif type.startswith('D'):
-                format = type[1:]
-                datestr = result[k].replace(' ','0')
+            elif typecode == 'i':
+                obj[k] = int(obj[k].strip())
+            elif typecode == 'f':
+                obj[k] = float(obj[k].strip())
+            elif typecode.startswith('D'):
+                format = typecode[1:]
+                datestr = obj[k].replace(' ','0')
                 try:
-                    result[k] = datetime.datetime.strptime(datestr, format)
+                    obj[k] = datetime.datetime.strptime(datestr, format)
                 except ValueError, e:
                     # TODO: this is probably a bad idea.
                     #  Return also an error dict showing which field parsed badly?
                     #  Allowing the client to try to re-parse?
-                    result[k] = None
+                    obj[k] = None
             else:
-                raise Exception('unknown type %s' % format)
+                raise Exception('unknown typecode %s' % typecode)
+
+    def parse_deliminated(self, file, colnames, typemap, delim=r'\s+', debug=True):
+        fh = open(file)
+        for line in fh:
+            line = line.strip()
+            row = re.split(delim, line)
+            result = dict(zip(colnames, row))
+            self.typecast(result, typemap)
+            if debug:
+                print "DEBUG line:", line
+                print "DEBUG row:", row
+                print "DEBUG result:", result
+            yield result
+        fh.close()
+
+    def byteparse(self, line, **spec):
+        line = line.rstrip('\n')
+        result = {}
+        typemap = {}
+        for k in spec:
+            (initial, final, typecode) = spec[k]
+            result[k] = line[initial:final]
+            typemap[k] = typecode
+        self.typecast(result, typemap)
         return result
 
     def stripstr(self, datadict, strlist=None):
