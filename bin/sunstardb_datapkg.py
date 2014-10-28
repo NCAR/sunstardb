@@ -21,12 +21,17 @@ def fatal_if(bool, message):
 
 print "Begining ingestion of data package '%s'" % dataname
 
-print "Inserting reference '%s'" % dataobj.reference['name']
-db_ref = db.insert_reference(dataobj.reference)
+db_ref = db.fetch_reference(dataobj.reference)
+if db_ref is None:
+    print "Inserting reference '%s'" % dataobj.reference['name']
+    db_ref = db.insert_reference(dataobj.reference)
 
-print "Inserting origin '%s'" % dataobj.origin['name']
-db_origin = db.insert_origin(dataobj.origin)
+db_origin = db.fetch_origin(dataobj.origin)
+if db_origin is None:
+    print "Inserting origin '%s'" % dataobj.origin['name']
+    db_origin = db.insert_origin(dataobj.origin)
 
+# TODO: currently source is a one-time use.  What about appending to a long time series?
 print "Inserting source '%s'" % dataobj.source['name']
 db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
 
