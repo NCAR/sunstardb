@@ -1,12 +1,16 @@
 import os
 import re
-import datetime
+from datetime import datetime, timedelta
 import astropy.coordinates
+import astropy.time
 
 def modification_date(filename):
     t = os.path.getmtime(filename)
-    return datetime.datetime.fromtimestamp(t)
+    return datetime.fromtimestamp(t)
 
+def jyear_utc(jyear):
+    return astropy.time.Time(jyear, format='jyear', scale='utc')
+    
 def compress_space(s):
     return re.sub(r' +', ' ', s)
 
@@ -19,19 +23,19 @@ LAST_TIME = None
 def time_reset():
     global FIRST_TIME
     global LAST_TIME
-    FIRST_TIME = datetime.datetime.now()
+    FIRST_TIME = datetime.now()
     LAST_TIME = FIRST_TIME
 time_reset() # set the globals on module load
 
 def time_lap():
     global LAST_TIME
-    t = datetime.datetime.now()
+    t = datetime.now()
     elapsed = (t - LAST_TIME).total_seconds()
     LAST_TIME = t
     return elapsed
 
 def time_total():
-    t = datetime.datetime.now()
+    t = datetime.now()
     elapsed = (t - FIRST_TIME).total_seconds()
     return elapsed
 
