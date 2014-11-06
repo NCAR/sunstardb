@@ -62,14 +62,25 @@ class BaseDataReader(object):
         else:
             return filepath
 
-    def listdir(self, dirname):
+    def listdir(self, dirname=None):
         """Return a list of filepaths for files in the given subdirectory"""
-        dirpath = os.path.join(self.dir, dirname)
+        if dirname is None:
+            dirpath = self.dir
+        else:
+            dirpath = os.path.join(self.dir, dirname)
         if os.path.isdir(dirpath):
             files = [ os.path.join(dirpath, f) for f in os.listdir(dirpath)]
             return files
         else:
             raise Exception("Directory '%s' does not exist" % dirpath)
+
+    def listdir_matching(self, regex, dirname=None):
+        """Return a list of files matching regex in the given subdirectory"""
+        files = []
+        for file in self.listdir(dirname):
+            if re.match(regex, os.path.basename(file)):
+                files.append(file)
+        return files
 
     def data(self):
         """Return a generator object for sunstardb insert objects
@@ -157,17 +168,22 @@ class TextDataReader(BaseDataReader):
             else:
                 raise Exception('unknown typecode %s' % typecode)
 
-    def parse_deliminated(self, file, colnames, typemap, delim=r'\s+', debug=True):
+    def parse_deliminated(self, file, colnames, typemap, delim=r'\s+', skip=0, debug=False):
         fh = open(file)
+        linenum = 0
         for line in fh:
+            linenum += 1
+            if linenum <= skip:
+                continue
             line = line.strip()
             row = re.split(delim, line)
             result = dict(zip(colnames, row))
+            if debug:
+                print "DEBUG %06i line:" % linenum, line
+                print "DEBUG %06i row:" % linenum, row
             self.typecast(result, typemap)
             if debug:
-                print "DEBUG line:", line
-                print "DEBUG row:", row
-                print "DEBUG result:", result
+                print "DEBUG %06i result:" %linenum, result
             yield result
         fh.close()
 
