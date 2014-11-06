@@ -141,6 +141,27 @@ def format_simbad_coord(ra, dec):
             raise Exception("unexpected format from SIMBAD: ra='%(ra)s' dec='%(dec)s'" % result)
     return result['ra'] + ' ' + result['dec']
 
+# Some objects; the utility here is for documentation purposes.
+class RowObject:
+    def __init__(self, rowdict, exceptions=[]):
+        for k, v in rowdict.items():
+            if k not in exceptions:
+                setattr(self, k, v)
+    
+class Source(RowObject):
+    def name(self):
+        """Name of the source"""
+        return self.name
+
+    def type(self):
+        """Type of source; manner in which it arrived into the database
+        
+        `type` may be one of the following:
+         - 'FILE' : Data which entered the database from a file
+         - 'CODE' : Data which entered the database as output of some code
+        """
+        return self.type
+    
 class DatabaseKeyError(Exception):
     """Error raised when a DB function is called without supplying data for the required columns"""
     def __init__(self, misslist, givenlist):
@@ -192,15 +213,15 @@ def db_bind_keys(*bind_reqkeys, **bind_kwargs):
 class SunStarDB(Database):
     """Class providing access to the solar-stellar database"""
     @staticmethod
-    def cli_connect():
+    def cli_connect(arguments=None):
         """For scripts, connect using command line arguments"""
-        parser = db_optparser()
-        (options, args) = parser.parse_args()
-        db_params = db_kwargs(options)
+        parser = db_argparser(arguments=arguments)
+        args = parser.parse_args()
+        db_params = db_kwargs(args)
         print "Connecting to database...",
         db = SunStarDB(**db_params)
         print "Done."
-        return options, args, db
+        return args, db
 
     @db_bind_keys('name')
     def fetch_datatype(self, **kwargs):
@@ -211,8 +232,8 @@ class SunStarDB(Database):
 
     def fetchall_datatypes(self, **kwargs):
         """Fetch all existing datatypes from the database"""
-        sql = "SELECT name FROM datatype"
-        return self.fetch_column(sql)
+        sql = "SELECT * FROM datatype"
+        return self.fetchall_astropy(sql)
 
     @db_bind_keys('type_id')
     def fetch_datatype_by_id(self, **kwargs):
@@ -262,6 +283,11 @@ class SunStarDB(Database):
                       VALUES (%(name)s, %(long)s, %(url)s, %(description)s)"""
         self.execute(sql, kwargs)
         return self.fetch_instrument(kwargs)
+
+    def fetchall_instruments(self):
+        """Fetch all existing instruments from the database"""
+        sql = """SELECT * FROM instrument"""
+        return self.fetchall_astropy(sql)
 
     @db_bind_keys('name')
     def fetch_star(self, **kwargs):
@@ -347,6 +373,11 @@ class SunStarDB(Database):
         self.execute(sql, kwargs)
         return self.fetch_origin(kwargs)
 
+    def fetchall_origins(self):
+        """Fetch all existing origins in the database"""
+        sql = """SELECT * FROM origin"""
+        return self.fetchall_astropy(sql)
+
     @db_bind_keys('name')
     def fetch_source(self, **kwargs):
         """Fetch a source given (name)"""
@@ -374,7 +405,17 @@ class SunStarDB(Database):
     @db_bind_keys('name')
     def delete_source(self, **kwargs):
         self.execute("DELETE FROM source WHERE name = %(name)s", kwargs)
+        self.delete_dataset(kwargs)
         # Other deletions handled by schema 'on delete cascade'
+
+    def fetchall_sources(self):
+        """Fetch all existing sources in the database"""
+        sql = """SELECT * FROM source"""
+        return self.fetchall_astropy(sql)
+
+    @db_bind_keys('name')
+    def delete_dataset(self, **kwargs):
+        self.execute("DELETE FROM dataset WHERE name = %(name)s", kwargs)
 
     @db_bind_keys('star_id', 'type_id', 'src_id')
     def fetch_property_by_id(self, **kwargs):
@@ -618,6 +659,11 @@ class SunStarDB(Database):
                   WHERE ds.name = %(name)s"""
         self.execute(sql, dataset)
 
+    def fetchall_datasets(self):
+        """Fetch all existing datasets from the database"""
+        sql = """SELECT * FROM dataset"""
+        return self.fetchall_astropy(sql)
+
     def sanity_check(self, tasks, source, verbose=True):
         """Execute sanity checks for the given source"""
         def maybe_print(msg):
@@ -736,7 +782,7 @@ class SunStarDB(Database):
         for i in ixs:
             sql += " %s d%02i ON d%02i.star = s.id" % (jointype, i, i)
 
-        result = self.fetchall(sql, { 'dataset' : dataset})
+        result = self.fetchall_astropy(sql, { 'dataset' : dataset})
         return result
 
     def fetch_data_cols(self, dataset, datatypes, nulls=True, errors=False):
@@ -762,6 +808,20 @@ class SunStarDB(Database):
         return self.list_to_columns(result)
 
     def fetch_timeseries(self, datatype, star, source=None):
+        """Fetch timeseries of a given datatype, star, and (optional) source
+
+        Inputs:
+          - datatype <str> : datatype name
+          - star <str>     : SIMBAD-recognized star name
+          - source <str>   : (optional) source name
+
+        Output:
+          - <astropy.table.Table> : table of (obs_time, datatype, errlo, errhi)
+
+        The 'obs_time' column is formatted as a datetime object.
+        Timeseries values are found in a column with the same name as
+        `datatype`.
+        """
         sql = """SELECT obs_time, %(name)s \"%(name)s\", errlo, errhi
                  FROM dat_%(name)s d
                  JOIN star_alias sa ON sa.star = d.star\n""" % dict(name=datatype)
