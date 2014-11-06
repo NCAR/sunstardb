@@ -5,31 +5,34 @@ import sys
 import os
 import os.path
 import numpy
+import argparse
 
 from sunstardb.database import SunStarDB
 from sunstardb import utils
 import plothappy
 
-(options, args, db) = SunStarDB.cli_connect()
+(args, db) = SunStarDB.cli_connect([dict(name='command', 
+                                         choices=['print', 'scatter', 'hist', 'timeseries']
+                                         ),
+                                    dict(name='args',
+                                         nargs=argparse.REMAINDER)
+                                    ])
 
 def no_data_exit(**input):
     input = ["%s='%s'" % (k, v) for k, v in input.items()]
     print "No data for", ", ".join(input)
     exit()
 
-command = args[0]
-if command == 'print':
-    dataset, types = args[1], args[2:]
+if args.command == 'print':
+    dataset, types = args.args[0], args.args[1:]
     data = db.fetch_data_table(dataset, types, nulls=True)
     if data is None:
         no_data_exit()
-    print "\t".join( ['star'] + types )
-    for row in data:
-        print "\t".join( str(v) for v in row.values() )
-elif command == 'scatter':
-    dataset, types = args[1], args[2:]
+    data.pprint(max_lines=-1, max_width=-1)
+elif args.command == 'scatter':
+    dataset, types = args.args[0], args.args[1:]
     x, y = types[0:2]
-    data = db.fetch_data_cols(dataset, [x, y], nulls=False, errors=True)
+    data = db.fetch_data_table(dataset, [x, y], nulls=False, errors=True)
     if data is None:
         no_data_exit()
     # replace None in error columns with numpy nan
@@ -43,16 +46,16 @@ elif command == 'scatter':
                         xerr=[data['errlo_'+x], data['errhi_'+x]],
                         yerr=[data['errlo_'+y], data['errhi_'+y]],
                         )
-elif command == 'hist':
-    dataset, types = args[1], args[2:]
+elif args.command == 'hist':
+    dataset, types = args.args[0], args.args[1:]
     x = types[0]
-    data = db.fetch_data_cols(dataset, [x], nulls=False)
+    data = db.fetch_data_table(dataset, [x], nulls=False)
     if data is None:
         no_data_exit()
     plothappy.show_hist(data[x], x)
-elif command == 'timeseries':
-    type, star = args[1], args[2]
-    source = args[3] if len(args) > 3 else None
+elif args.command == 'timeseries':
+    type, star = args.args[0], args.args[1]
+    source = args.args[2] if len(args.args) > 2 else None
     result = db.fetch_timeseries(type, star, source)
     if result is None:
         no_data_exit(source=source)

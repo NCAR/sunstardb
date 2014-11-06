@@ -6,9 +6,9 @@ import os
 
 from sunstardb.database import SunStarDB
 
-(options, args, db) = SunStarDB.cli_connect()
+(args, db) = SunStarDB.cli_connect([dict(name='json_file')])
 
-file = args[0]
+file = args.json_file
 print "Loading %s," % (file), 
 fp = open(file)
 js = json.load(fp)

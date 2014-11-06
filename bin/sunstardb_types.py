@@ -6,11 +6,10 @@ import os
 
 from sunstardb.database import SunStarDB
 
-(options, args, db) = SunStarDB.cli_connect()
+(args, db) = SunStarDB.cli_connect([dict(name='file')])
 
-file = args[0]
-print "Loading %s," % (file), 
-fp = open(file)
+print "Loading %s," % (args.file), 
+fp = open(args.file)
 js = json.load(fp)
 types = js['datatypes']
 print len(types), "datatypes in file."

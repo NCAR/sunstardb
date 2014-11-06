@@ -9,13 +9,15 @@ from sunstardb.database import SunStarDB
 from sunstardb import datapkg
 from sunstardb import utils
 
-(options, args, db) = SunStarDB.cli_connect()
-dataname = args[0]
+more_args = [ dict(name='datapkg'),
+              dict(flag='--nocommit', action='store_true', help="For testing, skip committing at the end.") ]
+(args, db) = SunStarDB.cli_connect(more_args)
+dataname = args.datapkg
 dataobj = datapkg.load_class(dataname)
 
 def fatal_if(bool, message):
     if bool:
-        print message
+        print "ERROR:", message
         print "Exiting."
         exit(-1)
 
@@ -34,6 +36,12 @@ if db_origin is None:
 # TODO: currently source is a one-time use.  What about appending to a long time series?
 print "Inserting source '%s'" % dataobj.source['name']
 db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
+
+db_instr = None
+if dataobj.instrument is not None:
+    db_instr = db.fetch_instrument({'name': dataobj.instrument})
+    fatal_if(db_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
+        
 
 print "Inserting data..."
 utils.time_reset()
@@ -65,7 +73,7 @@ for datum in dataobj.data():
         db_star = star_cache[star]
 
     print "Inserting datatype '%s' for star '%s' ('%s' in source)" % (datatype, db_star['name'], star)
-    db.insert_datum(datum, db_star, db_type, db_source, db_ref)
+    db.insert_datum(datum, db_star, db_type, db_source, db_ref, db_instr)
     n_data += 1
 
 n_stars = len(star_cache)
@@ -79,6 +87,11 @@ if dataobj.sanity_check is not None:
     print "Performing sanity checks"
     db.sanity_check(dataobj.sanity_check, db_source)
 
-print "Finished loading data package '%s', commiting." % dataname
-db.commit()
+print "Finished loading data package '%s'," % dataname,
+if not args.nocommit:
+    print "committing"
+    db.commit()
+else:
+    print "NOT COMMITING because of --nocommit option."
+
 db.close()

@@ -3,19 +3,21 @@
 import sys
 import os
 import os.path
+import argparse
 import numpy
 
 from sunstardb.database import SunStarDB
 from sunstardb import utils
 
-(options, args, db) = SunStarDB.cli_connect()
+(args, db) = SunStarDB.cli_connect([dict(name='command',
+                                         choices=['boxmatch']),
+                                    dict(name='args',
+                                         nargs=argparse.REMAINDER)])
 
-command, args = args[0], args[1:]
-
-if command == 'boxmatch':
-    side = float(args[0])
-    dataset = args[1]
-    inputfile = args[2]
+if args.command == 'boxmatch':
+    side = float(args.args[0])
+    dataset = args.args[1]
+    inputfile = args.args[2]
     for line in open(inputfile):
         line = line.strip()
         ra, dec = line.split('\t')

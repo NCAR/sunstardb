@@ -8,7 +8,7 @@ import sys
 import os
 import math
 import numpy
-from optparse import OptionParser
+from argparse import ArgumentParser
 import getpass
 
 class Database():
@@ -449,44 +449,55 @@ class Database():
 
 ### Package functions
 
-def db_optparser(parser = OptionParser(add_help_option=False)):
+def db_argparser(parser = ArgumentParser(add_help=False), arguments=None):
     """Get a optparse.OptionParser object with DB connection options added
 
     The option syntax is similar to the 'psql' command.
 
     The following options are defined in the parser:
     """
-    parser.add_option("-?", "--help", action="help")
-    parser.add_option("-h", "--host",
+    parser.add_argument("-?", "--help", action="help")
+    parser.add_argument("-h", "--host",
                       dest="host", default="localhost",
                       help="Database hostname.  Default 'localhost'")
-    parser.add_option("-p", "--port", dest="port",
+    parser.add_argument("-p", "--port", dest="port",
                       help="Database port")
-    parser.add_option("-U", "--username", dest="user",
+    parser.add_argument("-U", "--username", dest="user",
                       help="Database username")
-    parser.add_option("-W", "--password", dest="prompt_password",
+    parser.add_argument("-W", "--password", dest="prompt_password",
                       action='store_true', default=False,
                       help="Prompt for password")
-    parser.add_option("-d", "--dbname", dest="dbname",
+    parser.add_argument("-d", "--dbname", dest="dbname",
                       help="Database name")
-    parser.add_option("-D", "--debug", dest="debug",
+    parser.add_argument("-D", "--debug", dest="debug",
                       action='store_true', default=False,
                       help="Debug mode. Default False.")
+    # Add aditional arguments/options desired by the user
+    if arguments is not None:
+        for arg in arguments:
+            name_or_flags = []
+            if 'name' in arg:
+                name_or_flags = [arg.pop('name')]
+            elif 'flag' in arg:
+                name_or_flags = [arg.pop('flag')]
+            elif 'flags' in arg:
+                name_or_flags = arg.pop('flags')
+            parser.add_argument(*name_or_flags, **arg)
     return parser
 
-def db_kwargs(options):
+def db_kwargs(args):
     """Build a dict of DB connection kwargs suitable for Database()
 
     Intended to work along with db_optparser() results.
     """
     password = None
-    if options.prompt_password:
+    if args.prompt_password:
         password = getpass.getpass()
 
-    db_kwargs = {'host'     : options.host,
-                 'port'     : options.port,
-                 'database' : options.dbname,
-                 'username' : options.user,
+    db_kwargs = {'host'     : args.host,
+                 'port'     : args.port,
+                 'database' : args.dbname,
+                 'username' : args.user,
                  'password' : password,
-                 'debug'    : options.debug}
+                 'debug'    : args.debug}
     return db_kwargs
