@@ -3,6 +3,7 @@ import os.path
 import json
 import importlib
 import datetime
+import astropy.time
 import re
 
 from . import utils
@@ -147,7 +148,7 @@ class BaseDataReader(object):
         return self.extras
 
 class TextDataReader(BaseDataReader):
-    def typecast(self, obj, typemap):
+    def typecast(self, obj, typemap, time_scale=None):
         for k, typecode in typemap.items():
             if typecode == 's':
                 pass
@@ -155,20 +156,31 @@ class TextDataReader(BaseDataReader):
                 obj[k] = int(obj[k].strip())
             elif typecode == 'f':
                 obj[k] = float(obj[k].strip())
-            elif typecode.startswith('D'):
-                format = typecode[1:]
-                datestr = obj[k].replace(' ','0')
-                try:
-                    obj[k] = datetime.datetime.strptime(datestr, format)
-                except ValueError, e:
-                    # TODO: this is probably a bad idea.
-                    #  Return also an error dict showing which field parsed badly?
-                    #  Allowing the client to try to re-parse?
-                    obj[k] = None
+            elif typecode.startswith('T'): # 'T' for time
+                if time_scale is None:
+                    raise Exception('astropy.time.Time scale must be specified for date parsing')
+                time_format = typecode[1:]
+                # Option 1: format is one recognized by astropy.time.Time
+                if time_format in astropy.time.Time.FORMATS.keys():
+                    # Convert these to float first
+                    if time_format in ('byear', 'cxcsec', 'gps', 'jd', 'jyear', 'mjd', 'plot_date', 'unix'):
+                        obj[k] = float(obj[k])
+                    obj[k] = astropy.time.Time(obj[k], format=time_format, scale=time_scale)
+                # Option 2: format is one recognized by datetime.strptime()
+                else:
+                    datestr = obj[k].replace(' ','0') # ' 1/ 2/2014 -> '01/02/2014'
+                    try:
+                        dateobj = datetime.datetime.strptime(datestr, time_format)
+                        obj[k] = astropy.time.Time(dateobj, format='datetime', scale=time_scale)
+                    except ValueError, e:
+                        # TODO: this is probably a bad idea.
+                        #  Return also an error dict showing which field parsed badly?
+                        #  Allowing the client to try to re-parse?
+                        obj[k] = None
             else:
                 raise Exception('unknown typecode %s' % typecode)
 
-    def parse_deliminated(self, file, colnames, typemap, delim=r'\s+', skip=0, debug=False):
+    def parse_deliminated(self, file, colnames, typemap, delim=r'\s+', skip=0, debug=False, **typecast_kwargs):
         fh = open(file)
         linenum = 0
         for line in fh:
@@ -181,13 +193,13 @@ class TextDataReader(BaseDataReader):
             if debug:
                 print "DEBUG %06i line:" % linenum, line
                 print "DEBUG %06i row:" % linenum, row
-            self.typecast(result, typemap)
+            self.typecast(result, typemap, **typecast_kwargs)
             if debug:
                 print "DEBUG %06i result:" %linenum, result
             yield result
         fh.close()
 
-    def byteparse(self, line, **spec):
+    def byteparse(self, line, spec, **typecast_kwargs):
         line = line.rstrip('\n')
         result = {}
         typemap = {}
@@ -195,7 +207,7 @@ class TextDataReader(BaseDataReader):
             (initial, final, typecode) = spec[k]
             result[k] = line[initial:final]
             typemap[k] = typecode
-        self.typecast(result, typemap)
+        self.typecast(result, typemap, **typecast_kwargs)
         return result
 
     def stripstr(self, datadict, strlist=None):
@@ -211,8 +223,9 @@ class JsonDataReader(BaseDataReader):
         fh = open(self.file('properties.json'))
         js = json.load(fh)
         properties = js['properties']
-
         defaults = js.get('defaults')
+        scale = js.get('time_scale')
+
         def set_default(ptype, obj):
             if defaults is None or ptype not in defaults:
                 return
@@ -224,5 +237,14 @@ class JsonDataReader(BaseDataReader):
             for p in properties[ptype]:
                 p['type'] = ptype
                 set_default(ptype, p)
+                # Check for time data.  Ensure the scale is specified
+                if (p.get('obs_time') is not None or p.get('obs_range') is not None) and scale is None:
+                    raise Exception("Must specify time scale to use for 'obs_time' and 'obs_range'")
+                # Recast times as astropy.time.Time
+                if p.get('obs_time') is not None:
+                    p['obs_time'] = astropy.time.Time(p['obs_time'], scale=scale)
+                if p.get('obs_range') is not None:
+                    t1, t2 = p['obs_range']
+                    p['obs_range'] = (astropy.time.Time(t1, scale=scale), astropy.time.Time(t2, scale=scale))
                 yield p
         fh.close()

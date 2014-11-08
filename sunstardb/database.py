@@ -7,6 +7,7 @@ import psycopg2, psycopg2.extras
 import astroquery.simbad
 import astropy.units
 import astropy.coordinates
+import astropy.time
 from sqlhappy import *
 
 from . import utils
@@ -494,8 +495,49 @@ class SunStarDB(Database):
             obj['errbounds'] = psycopg2.extras.NumericRange(lo, hi, '[]')
 
     def prepare_time(self, obj):
+        # All measurement times must use the astropy.time.Time object
+        # and will be stored in the database using the Barycentric
+        # Coordinate Time scale.
+        #
+        # All non-measurement times must be datetime.datetime objects,
+        # and are assumed to be in the UTC time scale.
+        #
+        # There are three related time measurement quantities:
+        #   obs_time: left edge of observation time
+        #   obs_dur:  duration of observation, in seconds
+        #   obs_range: (time_start, time_stop) pair
+        # if obs_range is set, then the other two are derived
+        # if obs_time, obs_dur is set, then obs_range are derived
+        type_exc = Exception('astropy.time.Time is the standard time object for sunstardb.')
+        if obj.get('obs_time') is not None:
+            if not isinstance(obj['obs_time'], astropy.time.Time):
+                raise type_exc
+            # Convert observation time to TCB time scale, and convert to datetime object for insertion
+            obj['obs_time'] = obj['obs_time'].tcb.datetime
+            # Set obs_range if obs_dur is available
+            if obj.get('obs_range') is None and obj.get('obs_dur') is not None:
+                t1 = obj['obs_time']
+                t2 = t1 + astropy.time.TimeDelta(obj['obs_dur'], format='sec')
+                obj['obs_range'] = (t1, t2)
+                
         if obj.get('obs_range') is not None:
-            obj['obs_range'] = psycopg2.extras.DateTimeRange(obj['obs_range'][0], obj['obs_range'][1], '[)')
+            t1 = obj['obs_range'][0]
+            t2 = obj['obs_range'][1]
+            for t in [t1, t2]:
+                if not isinstance(t, astropy.time.Time):
+                    raise type_exc
+            # Convert to TCB time scale
+            t1 = t1.tcb
+            t2 = t2.tcb
+            # Set observation time if not already set
+            if obj.get('obs_time') is None:
+                obj['obs_time'] = t1.datetime
+            # Set observation duration if not already set
+            if obj.get('obs_dur') is None:
+                obj['obs_dur'] = (t2 - t1).sec # difference is a TimeDelta object
+
+            # Convert observation duration to TCB time scale, and convert to DateTimeRange for insertion
+            obj['obs_range'] = psycopg2.extras.DateTimeRange(t1.datetime, t2.datetime, '[)')
 
     def explicit_null(self, obj, *colnames):
         for col in colnames:
