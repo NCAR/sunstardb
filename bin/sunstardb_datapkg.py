@@ -73,6 +73,8 @@ for datum in dataobj.data():
         db_star = star_cache[star]
 
     print "Inserting datatype '%s' for star '%s' ('%s' in source)" % (datatype, db_star['name'], star)
+    if args.debug:
+        print 'DATUM:', datum
     db.insert_datum(datum, db_star, db_type, db_source, db_ref, db_instr)
     n_data += 1
 
