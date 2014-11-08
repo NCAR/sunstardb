@@ -6,16 +6,17 @@ import os
 
 from sunstardb.database import SunStarDB
 
-(options, args, db) = SunStarDB.cli_connect()
-types = args
-if len(types) == 0:
+(args, db) = SunStarDB.cli_connect([dict(name='types', nargs='+')])
+if len(args.types) == 0:
     raise Exception("No datatypes provided")
-elif len(types) == 1 and types[0] == '*':
+elif len(args.types) == 1 and args.types[0] == '*':
     print "!!! Dropping ALL datatypes !!!"
-    types = db.fetchall_datatypes()
+    droptypes = db.fetchall_datatypes()
+    droptypes = droptypes['name'].data
+else:
+    droptypes = args.types
 
-
-for t in types:
+for t in droptypes:
     print "Dropping", t
     db.drop_datatype(name=t)
 
