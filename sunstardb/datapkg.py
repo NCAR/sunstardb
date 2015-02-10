@@ -148,14 +148,24 @@ class BaseDataReader(object):
         return self.extras
 
 class TextDataReader(BaseDataReader):
-    def typecast(self, obj, typemap, time_scale=None):
+    def typecast(self, obj, typemap, debug=False, time_scale=None):
+        if debug:
+            print "DEBUG obj:", obj
+            print "DEBUG typemap:", typemap
         for k, typecode in typemap.items():
+            o = obj[k].strip()
             if typecode == 's':
                 pass
             elif typecode == 'i':
-                obj[k] = int(obj[k].strip())
+                if o == '':
+                    obj[k] = None
+                else:
+                    obj[k] = int(o)
             elif typecode == 'f':
-                obj[k] = float(obj[k].strip())
+                if o == '':
+                    obj[k] = None
+                else:
+                    obj[k] = float(o)
             elif typecode.startswith('T'): # 'T' for time
                 if time_scale is None:
                     raise Exception('astropy.time.Time scale must be specified for date parsing')
@@ -199,15 +209,18 @@ class TextDataReader(BaseDataReader):
             yield result
         fh.close()
 
-    def byteparse(self, line, spec, **typecast_kwargs):
+    def byteparse(self, line, spec, debug=False, **typecast_kwargs):
         line = line.rstrip('\n')
         result = {}
         typemap = {}
+        if debug:
+            print "DEBUG line:", line
+            print "DEBUG spec:", spec
         for k in spec:
             (initial, final, typecode) = spec[k]
             result[k] = line[initial:final]
             typemap[k] = typecode
-        self.typecast(result, typemap, **typecast_kwargs)
+        self.typecast(result, typemap, debug=debug, **typecast_kwargs)
         return result
 
     def stripstr(self, datadict, strlist=None):
