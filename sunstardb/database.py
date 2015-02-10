@@ -60,7 +60,7 @@ def lookup_simbad_ids(object_name):
     """Lookup the given object in Simbad and return a dict of arrays
     
     Identifiers returned from SIMBAD have their spaces compressed.
-    For example, 'HD 1845' will be returned as 'HD 1845'.  This is in
+    For example, 'HD   1845' will be returned as 'HD 1845'.  This is in
     order to ensure uniform name-matching.
     """
 
@@ -328,7 +328,7 @@ class SunStarDB(Database):
                 simbad_ids  = { 'NAME' : [ 'Sun' ] }
             else:
                 # Require that object exists in SIMBAD
-                raise Exception("Object '%s' not found in SIMBAD. Input was '%s'" % (simbad_name, repr(kwargs)))
+                raise Exception("Object '%s' not found in SIMBAD. Input was '%s'" % (star, repr(kwargs)))
 
         # Insert the SIMBAD main ID as the star's main name
         sql = """INSERT INTO star (name, coord, ra, dec) 
@@ -530,6 +530,7 @@ class SunStarDB(Database):
             t1 = t1.tcb
             t2 = t2.tcb
             # Set observation time if not already set
+            # obs_time is set to start time of obs_range
             if obj.get('obs_time') is None:
                 obj['obs_time'] = t1.datetime
             # Set observation duration if not already set
@@ -659,7 +660,10 @@ class SunStarDB(Database):
             self.execute(sql, kwargs)
             db_ts = self.fetch_timeseries_by_id(kwargs)
         else:
-            sql = """UPDATE timeseries SET append_time = current_timestamp"""
+            sql = """UPDATE timeseries SET append_time = current_timestamp
+                      WHERE star = %(star_id)s AND
+                            type = %(type_id)s AND
+                            source = %(src_id)s"""
             self.execute(sql, kwargs)
         kwargs['ts_id'] = db_ts['id']
         db_type = self.fetch_datatype_by_id(kwargs)
