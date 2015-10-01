@@ -148,7 +148,7 @@ class BaseDataReader(object):
         return self.extras
 
 class TextDataReader(BaseDataReader):
-    def typecast(self, obj, typemap, debug=False, time_scale=None):
+    def typecast(self, obj, typemap, debug=False, time_scale=None, offset=None):
         if debug:
             print "DEBUG obj:", obj
             print "DEBUG typemap:", typemap
@@ -175,6 +175,8 @@ class TextDataReader(BaseDataReader):
                     # Convert these to float first
                     if time_format in ('byear', 'cxcsec', 'gps', 'jd', 'jyear', 'mjd', 'plot_date', 'unix'):
                         obj[k] = float(obj[k])
+                    if offset is not None:
+                        obj[k] += offset
                     obj[k] = astropy.time.Time(obj[k], format=time_format, scale=time_scale)
                 # Option 2: format is one recognized by datetime.strptime()
                 else:
@@ -261,3 +263,15 @@ class JsonDataReader(BaseDataReader):
                     p['obs_range'] = (astropy.time.Time(t1, scale=scale), astropy.time.Time(t2, scale=scale))
                 yield p
         fh.close()
+
+class DuplicateTimeIncrementor(astropy.time.TimeDelta):
+    last_time = None
+
+    def process(self, time):
+        if self.last_time is not None and self.last_time == time:
+            time = time + self
+        self.last_time = time
+        return time
+
+    def reset(self):
+        self.last_time = None
