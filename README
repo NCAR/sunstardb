@@ -7,7 +7,7 @@ createuser --superuser $USER -U postgres
 sudo su postgres -c 'pg_ctl start -D /opt/local/var/db/postgresql93/defaultdb -l /opt/local/var/db/postgresql93/serverlog'
 
 # Stop database server
-sudo su postgres -c 'pg_ctl stop -D /opt/local/var/db/postgresql93/defaultdb
+sudo su postgres -c 'pg_ctl stop -D /opt/local/var/db/postgresql93/defaultdb'
 
 # Create database
 createdb sunstardb
