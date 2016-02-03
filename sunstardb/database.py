@@ -301,6 +301,37 @@ class SunStarDB(Database):
         db_star = self.fetch_row(sql, kwargs)
         return db_star
 
+    @db_bind_keys('name', 'type')
+    def fetch_star_alias(self, **kwargs):
+        """Fetch a star alias of (type), using (name) which may be any alias
+        """
+        sql = """SELECT sa.name
+                   FROM star_alias sa
+                  WHERE sa.type = %(type)s
+                    AND sa.star = (
+                        SELECT s.id
+                          FROM star s
+                          JOIN star_alias sa ON sa.star = s.id
+                         WHERE replace(sa.name, ' ', '') = replace(%(name)s, ' ', '')
+                        )"""
+        db_star = self.fetch_scalar(sql, kwargs)
+        return db_star
+
+    @db_bind_keys('name')
+    def fetchall_star_aliases(self, **kwargs):
+        """Fetch all star aliases, using (name) which may be any alias
+        """
+        sql = """SELECT sa.type, sa.name
+                   FROM star_alias sa
+                  WHERE sa.star = (
+                        SELECT s.id
+                          FROM star s
+                          JOIN star_alias sa ON sa.star = s.id
+                         WHERE replace(sa.name, ' ', '') = replace(%(name)s, ' ', '')
+                        )"""
+        star_aliases = self.fetchall(sql, kwargs)
+        return star_aliases
+
     @db_bind_keys('name')
     def fetch_star_by_main_id(self, **kwargs):
         """Fetch a star given its (name), but only checking the main identifier
@@ -313,6 +344,35 @@ class SunStarDB(Database):
         sql = "SELECT * FROM star WHERE name=%(name)s"
         db_star = self.fetch_row(sql, kwargs)
         return db_star
+
+    def fetch_starlist(self, listtype=None, **binds):
+        if listtype is None:
+            sql = "SELECT * FROM star"
+            binds = {}
+        elif listtype == 'dataset':
+            sql = """SELECT DISTINCT s.*
+                       FROM star s
+                       JOIN dataset_map dsm ON dsm.star = s.id
+                       JOIN dataset ds ON ds.id = dsm.id
+                       JOIN datatype dt ON dt.id = dsm.type
+                      WHERE ds.name = %(dataset)s"""
+            sql += self.build_filter(binds, {'datatype':'dt.name'}, where=False)
+        elif listtype == 'timeseries':
+            sql = """SELECT DISTINCT s.*
+                                FROM star s
+                                JOIN timeseries ts ON ts.star = s.id
+                                JOIN datatype dt ON dt.id = ts.type
+                                JOIN source src on src.id = ts.source"""
+            sql += self.build_filter(binds, {'datatype':'dt.name','source':'src.name'})
+        elif listtype == 'property':
+            sql = """SELECT DISTINCT s.*
+                                FROM star s
+                                JOIN property p on p.star = s.id
+                                JOIN datatype dt ON dt.id = p.type
+                                JOIN source src on src.id = p.source"""
+            sql += self.build_filter(binds, {'datatype':'dt.name','source':'src.name'})
+        result = self.fetchall(sql, binds)
+        return result
 
     @db_bind_keys('name')
     def insert_star(self, **kwargs):

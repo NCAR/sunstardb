@@ -447,6 +447,17 @@ class Database():
 
         return list_size(row.values())
 
+    def build_filter(self, binds, colmap, default_op='=', clause_op='AND', where=True):
+        clauses = []
+        for b in binds:
+            if b in colmap:
+                clause = colmap[b] + default_op + ('%%(%s)s' % b)
+                clauses.append(clause)
+        filter = (' '+clause_op+' ').join(clauses)
+        if filter and where:
+            filter = ' WHERE ' + filter
+        return filter
+
 ### Package functions
 
 def db_argparser(parser = ArgumentParser(add_help=False), arguments=None):
