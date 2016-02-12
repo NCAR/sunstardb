@@ -199,7 +199,7 @@ class TextDataReader(BaseDataReader):
             linenum += 1
             if linenum <= skip:
                 continue
-            line = line.strip()
+            line = line.rstrip('\n')
             row = re.split(delim, line)
             result = dict(zip(colnames, row))
             if debug:
