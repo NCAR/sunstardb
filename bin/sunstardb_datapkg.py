@@ -40,9 +40,9 @@ db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
 global_instr = None
 instrument_cache = None
 if dataobj.instrument is not None:
-    if isinstance(dataobj.instrument, str):
+    if isinstance(dataobj.instrument, basestring):
         global_instr = db.fetch_instrument({'name': dataobj.instrument})
-        fatal_if(db_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
+        fatal_if(global_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
     elif isinstance(dataobj.instrument, list):
         instrument_cache = {}
         for instrument in dataobj.instrument:
@@ -50,7 +50,7 @@ if dataobj.instrument is not None:
             fatal_if(db_i is None, "Instrument '%s' is not in the database" % instrument)
             instrument_cache[instrument] = db_i
     else:
-        print "ERROR: unexpected instrument specification."
+        print "ERROR: unexpected instrument specification"
         print "Exiting."
         exit(-1)
 
