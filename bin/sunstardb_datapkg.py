@@ -37,11 +37,22 @@ if db_origin is None:
 print "Inserting source '%s'" % dataobj.source['name']
 db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
 
-db_instr = None
+global_instr = None
+instrument_cache = None
 if dataobj.instrument is not None:
-    db_instr = db.fetch_instrument({'name': dataobj.instrument})
-    fatal_if(db_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
-        
+    if isinstance(dataobj.instrument, str):
+        global_instr = db.fetch_instrument({'name': dataobj.instrument})
+        fatal_if(db_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
+    elif isinstance(dataobj.instrument, list):
+        instrument_cache = {}
+        for instrument in dataobj.instrument:
+            db_i = db.fetch_instrument({'name': instrument})
+            fatal_if(db_i is None, "Instrument '%s' is not in the database" % instrument)
+            instrument_cache[instrument] = db_i
+    else:
+        print "ERROR: unexpected instrument specification."
+        print "Exiting."
+        exit(-1)
 
 print "Inserting data..."
 utils.time_reset()
@@ -71,6 +82,14 @@ for datum in dataobj.data():
         star_cache[star] = db_star
     else:
         db_star = star_cache[star]
+
+    # Handle instrument selection for multiple instruments
+    if 'instrument' in datum:
+        fatal_if(instrument_cache is None, "no instrument list specified in datapkg")
+        fatal_if(datum['instrument'] not in instrument_cache, "'%s' not in instrument list" % datum['instrument'])
+        db_instr = instrument_cache[datum['instrument']]
+    else:
+        db_instr = global_instr
 
     print "Inserting datatype '%s' for star '%s' ('%s' in source)" % (datatype, db_star['name'], star)
     if args.debug:
