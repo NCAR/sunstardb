@@ -71,6 +71,12 @@ class Database():
         self.open()
         return
 
+    def __del__(self):
+        """Destructor that insures database connection is closed
+        """
+        if not self.connection.closed:
+            self.close()
+
     def makebinds(self, data, names):
         """Build binds (list of maps) from a list of lists
 
