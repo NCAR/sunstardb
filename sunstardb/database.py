@@ -495,6 +495,21 @@ class SunStarDB(Database):
         db_property = self.fetch_row(sql, kwargs)
         return db_property
 
+    def fetchall_properties(self, **binds):
+        sql = """SELECT p.*
+                          FROM property p
+                          JOIN star s ON s.id = p.star
+                          JOIN datatype dt ON dt.id = p.type
+                          JOIN source src ON src.id = p.source
+                          JOIN reference r ON r.id = p.reference
+                     LEFT JOIN instrument i ON i.id = p.instrument"""
+        sql += self.build_filter(binds, {'star_id'  : 's.id',
+                                         'datatype' : 'dt.name',
+                                         'source'   : 'src.name'})
+        # TODO: need to make compound object: star, source, reference, instrument
+        result = self.fetchall(sql, binds)
+        return result
+
     @db_bind_keys('star_id', 'type_id', 'src_id')
     def fetch_timeseries_by_id(self, **kwargs):
         """Fetch a timeseries given (star_id, type_id, src_id)"""
@@ -804,7 +819,7 @@ class SunStarDB(Database):
         else:
             return True
 
-    def fetchall_astropy(self, sql, binds = None, dtype=None):
+    def fetchall_astropy(self, sql, binds=None, dtype=None):
         """Return all results of an SQL query as an astropy.table.Table, or None
 
         Input:
@@ -814,25 +829,24 @@ class SunStarDB(Database):
         Output:
          - <Table> : table of results
         """
-        result, colnames = self.fetchall(sql, binds, colnames = True)
+        result, colnames = self.fetchall(sql, binds, colnames=True)
         table = astropy.table.Table(rows=result, names=colnames, dtype=dtype)
         return table
 
     def fetch_data(self, datatype):
-        """Fetch data and all associated info for the given datatype"""
+        """Fetch data and associated info for the given datatype"""
         
-        sql = """SELECT s.id star_id, s.hd, s.bright, s.proper,
-                        r.name reference, o.name origin, o.kind origin_kind, i.name instrument,
-                        p.id prop_id, d.%(datatype) "%(datatype)s"
+        sql = """SELECT s.name star, r.name reference, o.name origin, o.kind origin_kind, i.name instrument,
+                        d.%(datatype)s "%(datatype)s", d.errhi, d.errlo
                    FROM dat_%(datatype)s d
                    JOIN property p ON p.id = d.property
                    JOIN star s ON s.id = p.star
                    JOIN reference r ON r.id = p.reference
                    JOIN source src ON src.id = p.source
                    JOIN origin o ON o.id = src.origin
-                   JOIN instrument i ON i.id = p.instrument"""
+                   LEFT JOIN instrument i ON i.id = p.instrument"""
         # TODO: validate to prevent SQL injection
-        result = self.fetchall(sql % datatype)
+        result = self.fetchall_astropy(sql % {'datatype':datatype})
         return result
 
     def fetch_data_table(self, dataset, datatypes, nulls=True, errors=False):
