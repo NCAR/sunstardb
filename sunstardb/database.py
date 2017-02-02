@@ -465,8 +465,8 @@ class SunStarDB(Database):
     
     @db_bind_keys('name')
     def delete_source(self, **kwargs):
-        self.execute("DELETE FROM source WHERE name = %(name)s", kwargs)
         self.delete_dataset(kwargs)
+        self.execute("DELETE FROM source WHERE name = %(name)s", kwargs)
         # Other deletions handled by schema 'on delete cascade'
 
     def fetchall_sources(self):
@@ -849,7 +849,7 @@ class SunStarDB(Database):
         result = self.fetchall_astropy(sql % {'datatype':datatype})
         return result
 
-    def fetch_data_table(self, dataset, datatypes, nulls=True, errors=False):
+    def fetch_data_table(self, dataset, datatypes, meta=None, nulls=True, errors=False):
         """Fetch star names and data as a table for the given dataset
 
         Inputs:
@@ -875,12 +875,20 @@ class SunStarDB(Database):
         # Define source sub-tables
         sql = "WITH "
         for i in ixs:
+            dtype = datatypes[i]
+            dcols = 'd.*'
+            if meta and dtype in meta:
+                # listify a simple string value
+                if isinstance(meta[dtype], basestring):
+                    meta[dtype] = [ meta[dtype] ]
+                for metacol in meta[dtype]:
+                    dcols += ", d.meta->>'%s' \"%s\"" % (metacol, metacol)
             sql += """d%02i AS (
-                        SELECT d.* FROM dat_%s d
+                        SELECT %s FROM dat_%s d
                           JOIN dataset_map dm ON dm.property = d.property
                           JOIN dataset ds ON ds.id = dm.dataset
                          WHERE ds.name = %%(dataset)s ),
-            """ % (i, datatypes[i])
+            """ % (i, dcols, datatypes[i])
         sql += "uq_stars AS ( "
         sql += " UNION ".join( "SELECT star FROM d%02i" % i for i in ixs)
 
@@ -891,6 +899,11 @@ class SunStarDB(Database):
         if errors:
             col_pattern += ", d%(index)02i.errlo \"errlo_%(name)s\", d%(index)02i.errhi \"errhi_%(name)s\""
         sql += ", ".join( col_pattern % dict(index=i, name=datatypes[i]) for i in ixs )
+        if meta:
+            for dtype in meta:
+                i = datatypes.index(dtype)
+                for metacol in meta[dtype]:
+                    sql += ", d%(index)02i.\"%(name)s\" \"%(name)s\"" % dict(index=i, name=metacol)
 
         # Source sub-tables
         sql += " FROM uq_stars us JOIN star s ON s.id = us.star"
