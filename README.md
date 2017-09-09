@@ -18,6 +18,12 @@ sunstardb consists of the following components:
 
 More information and announcements may be found at https://www2.hao.ucar.edu/sunstardb
 
+An example can be seen in github by clicking the .ipynb files above,
+or from [this
+link](http://nbviewer.jupyter.org/github/NCAR/sunstardb/blob/master/sunstardb%20long%20example.ipynb).
+(Note that the interactive tables do not work in these links, but do
+work when running the jupyter notebook server locally by following the installation instructions below.)
+
 ## Requirements
 
 sunstardb requires the following packages:
@@ -35,9 +41,9 @@ sunstardb requires the following packages:
 
      OR
 
-   * `wget 'https://github.com/NCAR/sunstardb/archive/master.zip'`  
-     `unzip master.zip`  
-     `mv sunstardb-master sunstardb`
+   * ```wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
+     unzip master.zip  
+     mv sunstardb-master sunstardb```
 1. `cd sunstardb`
 1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Fetch the configuration file:
