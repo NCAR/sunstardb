@@ -9,6 +9,7 @@ import os
 import math
 import numpy
 from argparse import ArgumentParser
+import ConfigParser
 import getpass
 
 class Database():
@@ -42,7 +43,7 @@ class Database():
 
         1. if database or username are passed, use those parameters
            (drivername, host, port, database, username, password)
-        2. lookup a databse connection from the (database, config_key)
+        2. lookup a databse connection from the [connection]
            section of the config file in the DBCONFIG environment var.
 
         Input:
@@ -58,13 +59,18 @@ class Database():
         # If the user provided a database or user build a dburl
         if (database is not None or username is not None):
             conn_params = { 'host':host, 'database':database, 'username':username, 'password':password }
-            conn_str = "host='%(host)s' dbname='%(database)s' user='%(username)s' password='%(password)s'" % \
-                conn_params
         # If we have no connect info, look in the configuration
         elif os.environ.get('DBCONFIG'):
-            raise NotImplementedError()
+            config = ConfigParser.ConfigParser()
+            configfile = os.environ.get('DBCONFIG')
+            config.readfp(open(configfile))
+            conn_params = dict(config.items('connection'))            
         else:
             raise Exception("Connection info not provided.")
+
+        conn_str = "host='%(host)s' dbname='%(database)s' user='%(username)s' password='%(password)s'" % \
+            conn_params
+
 
         self.conn_params = conn_params
         self.conn_str = conn_str

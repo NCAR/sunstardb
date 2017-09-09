@@ -16,6 +16,13 @@ from . import schema
 # Consider all dicts as Json type
 psycopg2.extensions.register_adapter(dict, psycopg2.extras.Json)
 
+# Default configuration file location is the same as this installation directory
+if not os.environ.get('DBCONFIG'):
+    config_file = os.path.join(os.path.dirname(os.path.abspath(sys.modules[__name__].__file__)), 'sunstardb.cfg')
+    if os.path.isfile(config_file):
+        os.environ['DBCONFIG'] = config_file
+
+
 # useful globals
 TABLE_TEMPLATES = {}
 
