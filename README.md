@@ -16,4 +16,4 @@ sunstardb consists of the following components:
  * python APIs for interactive access
  * TODO: a web front-end for basic reporting of database contents
 
-More information and announcements may be found at [](https://www2.hao.ucar.edu/sunstardb).
+More information and announcements may be found at (https://www2.hao.ucar.edu/sunstardb).
