@@ -12,8 +12,8 @@ research efforts in the solar-stellar connection.
 
 sunstardb consists of the following components:
 
- - postgreSQL database
- - python APIs for interactive access
- - TODO: a web front-end for basic reporting of database contents
+ * postgreSQL database
+ * python APIs for interactive access
+ * TODO: a web front-end for basic reporting of database contents
 
-More information and announcements may be found at [][https://www2.hao.ucar.edu/sunstardb].
+More information and announcements may be found at [https://www2.hao.ucar.edu/sunstardb][https://www2.hao.ucar.edu/sunstardb].
