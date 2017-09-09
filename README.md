@@ -47,3 +47,5 @@ sunstardb requires the following packages:
 1. Run the example notebook:
 
    `jupyter notebook 'sunstardb long example.ipynb'`
+
+   In the jupyter notebook menu, select "Cell -> Run All"
