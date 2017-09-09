@@ -29,16 +29,21 @@ sunstardb requires the following packages:
 
 ## Installation
 
- 1. Install the requirements listed above and ensure they are in your python environment.
- 1. Clone or download sunstardb:
-    * `git clone https://github.com/NCAR/sunstardb.git`
-      OR
-    * `wget 'https://github.com/NCAR/sunstardb/archive/master.zip'`
-      `unzip master.zip`
-      `mv sunstardb-master sunstardb`
- 1. `cd sunstardb`
- 1. `export PYTHONPATH=$PWD:$PYTHONPATH
- 1. Fetch the configuration file:
-    `wget 'XXX TODO XXX'`
- 1. Run the example notebook:
-    `jupyter notebook 'sunstardb long example.ipynb'`
+1. Install the requirements listed above and ensure they are in your python environment.
+1. Clone or download sunstardb:
+  * `git clone https://github.com/NCAR/sunstardb.git`
+
+   OR
+
+  * `wget 'https://github.com/NCAR/sunstardb/archive/master.zip'`
+    `unzip master.zip`
+    `mv sunstardb-master sunstardb`
+1. `cd sunstardb`
+1. `export PYTHONPATH=$PWD:$PYTHONPATH
+1. Fetch the configuration file:
+
+   `wget 'XXX TODO XXX'`
+
+1. Run the example notebook:
+
+   `jupyter notebook 'sunstardb long example.ipynb'`
