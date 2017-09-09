@@ -41,9 +41,11 @@ sunstardb requires the following packages:
 
      OR
 
-   * ```wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
-     unzip master.zip  
-     mv sunstardb-master sunstardb```
+   * ```
+     wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
+     unzip master.zip
+     mv sunstardb-master sunstardb
+     ```
 1. `cd sunstardb`
 1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Fetch the configuration file:
