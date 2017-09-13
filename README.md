@@ -46,7 +46,6 @@ sunstardb requires the following packages:
      mv sunstardb-master sunstardb
      ```
 1. `cd sunstardb`
-1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Fetch the configuration file using one of the following options:
    * Using `wget`:
 
@@ -57,6 +56,7 @@ sunstardb requires the following packages:
    * Or, if neither of the above utilities are installed, using your
    usual web browser.  Go to https://goo.gl/h1WH2A and save the output
    to a file named `sunstardb.cfg` in the top-level folder.
+1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Run the example notebook:
 
    `jupyter notebook 'sunstardb long example.ipynb'`
