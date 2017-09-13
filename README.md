@@ -52,15 +52,12 @@ sunstardb requires the following packages:
    1. Using `wget`:
 
    `wget --user-agent="Lynx/0 libwww-FM/0"  'https://goo.gl/h1WH2A' -O sunstardb.cfg`
-
    1. Using `curl`:
 
    `curl -L --user-agent "Lynx/0 libwww-FM/0" 'https://goo.gl/h1WH2A' > sunstardb.cfg`
-
    1. Or, if neither of the above utilities are installed, using your
    usual web browser.  Go to https://goo.gl/h1WH2A and save the output
-   there to `sunstardb.cfg` in the top-level folder.
-
+   to a file named `sunstardb.cfg` in the top-level folder.
 1. Run the example notebook:
 
    `jupyter notebook 'sunstardb long example.ipynb'`
