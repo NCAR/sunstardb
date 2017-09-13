@@ -40,9 +40,7 @@ sunstardb requires the following packages:
    * `git clone https://github.com/NCAR/sunstardb.git`
 
      OR
-
-   *   
-     ```
+   * ```
      wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
      unzip master.zip
      mv sunstardb-master sunstardb
