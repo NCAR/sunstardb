@@ -41,7 +41,7 @@ sunstardb requires the following packages:
 
      OR
 
-   * 
+   *   
      ```
      wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
      unzip master.zip
