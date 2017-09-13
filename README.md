@@ -41,7 +41,8 @@ sunstardb requires the following packages:
 
      OR
 
-   * ```
+   * 
+     ```
      wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
      unzip master.zip
      mv sunstardb-master sunstardb
@@ -49,13 +50,13 @@ sunstardb requires the following packages:
 1. `cd sunstardb`
 1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Fetch the configuration file using one of the following options:
-   1. Using `wget`:
+   * Using `wget`:
 
    `wget --user-agent="Lynx/0 libwww-FM/0"  'https://goo.gl/h1WH2A' -O sunstardb.cfg`  
-   1. Using `curl`:
+   * Using `curl`:
 
    `curl -L --user-agent "Lynx/0 libwww-FM/0" 'https://goo.gl/h1WH2A' > sunstardb.cfg`  
-   1. Or, if neither of the above utilities are installed, using your
+   * Or, if neither of the above utilities are installed, using your
    usual web browser.  Go to https://goo.gl/h1WH2A and save the output
    to a file named `sunstardb.cfg` in the top-level folder.
 1. Run the example notebook:
