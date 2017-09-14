@@ -36,16 +36,8 @@ sunstardb requires the following packages:
 ## Installation
 
 1. Install the requirements listed above and ensure they are in your python environment.
-1. Clone or download sunstardb:
-   * `git clone https://github.com/NCAR/sunstardb.git`
-
-     OR
-   * ```
-     wget 'https://github.com/NCAR/sunstardb/archive/master.zip'
-     unzip master.zip
-     mv sunstardb-master sunstardb
-     ```
-1. `cd sunstardb`
+1. Download the [latest release of sunstardb](https://github.com/NCAR/sunstardb/releases/latest)
+1. In a terminal, change directory to the release downloaded above.
 1. Fetch the configuration file using one of the following options:
    * Using `wget`:
 
