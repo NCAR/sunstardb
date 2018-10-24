@@ -9,7 +9,7 @@ import os
 import math
 import numpy
 from argparse import ArgumentParser
-import ConfigParser
+import configparser
 import getpass
 
 class Database():
@@ -61,7 +61,7 @@ class Database():
             conn_params = { 'host':host, 'database':database, 'username':username, 'password':password }
         # If we have no connect info, look in the configuration
         elif os.environ.get('DBCONFIG'):
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             configfile = os.environ.get('DBCONFIG')
             config.readfp(open(configfile))
             conn_params = dict(config.items('connection'))            
@@ -123,7 +123,7 @@ class Database():
         cursor = self.connection.cursor()
 
         if self.debug:
-            print "SQL:", sql
+            print("SQL:", sql)
 
         if binds is None:
             cursor.execute(sql)
@@ -241,7 +241,7 @@ class Database():
         """
         if result is None:
             return None
-        col_list = result[0].keys()
+        col_list = list(result[0].keys())
         cols = {}
         for c in col_list:
             cols[c] = []
@@ -435,14 +435,14 @@ class Database():
         Everything else is counted as one byte.
         """
         # Note: this would be easier with python 3.0 getsizeof() builtin
-        intsize = (math.log(sys.maxint, 2) + 1)/8 # are we 64 or 32 bit?
+        intsize = (math.log(sys.maxsize, 2) + 1)/8 # are we 64 or 32 bit?
 
         # Define a private function so that we can recurse
         def list_size(thelist):
             size = 0
             for v in thelist:
                 if (isinstance(v, int) or
-                    isinstance(v, long) or
+                    isinstance(v, int) or
                     isinstance(v, float)):
                     # Numbers are either 4 or 8 bytes
                     size += intsize
@@ -457,7 +457,7 @@ class Database():
                     size += 1
             return size
 
-        return list_size(row.values())
+        return list_size(list(row.values()))
 
     def build_filter(self, binds, colmap, default_op='=', clause_op='AND', where=True):
         clauses = []

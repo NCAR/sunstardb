@@ -23,10 +23,10 @@ if args.command == 'boxmatch':
         ra, dec = line.split('\t')
         skycoord = utils.parse_skycoord(ra, dec)
         result = db.fetch_boxmatch(dataset, skycoord, side, orient='center')
-        print "%0.1f deg box search centered on ra=%0.3f deg, dec=%0.3f deg:" % \
-            (side, skycoord.ra.degree, skycoord.dec.degree)
-        print result
-        print
+        print("%0.1f deg box search centered on ra=%0.3f deg, dec=%0.3f deg:" % \
+            (side, skycoord.ra.degree, skycoord.dec.degree))
+        print(result)
+        print()
 else:
-    print "Invalid command:", command
+    print("Invalid command:", command)
     exit(-1)

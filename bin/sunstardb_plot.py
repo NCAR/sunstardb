@@ -19,8 +19,8 @@ import plothappy
                                     ])
 
 def no_data_exit(**input):
-    input = ["%s='%s'" % (k, v) for k, v in input.items()]
-    print "No data for", ", ".join(input)
+    input = ["%s='%s'" % (k, v) for k, v in list(input.items())]
+    print("No data for", ", ".join(input))
     exit()
 
 if args.command == 'print':

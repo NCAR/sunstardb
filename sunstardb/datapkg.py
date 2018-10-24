@@ -105,7 +105,7 @@ class BaseDataReader(object):
         self.sanity_check = js.get('sanity_check')
         
         # Extra info
-        for k, v in js.items():
+        for k, v in list(js.items()):
             if k in ('reference', 'origin', 'instrument', 'sanity_check'):
                 continue
             if self.extras is None:
@@ -150,9 +150,9 @@ class BaseDataReader(object):
 class TextDataReader(BaseDataReader):
     def typecast(self, obj, typemap, debug=False, time_scale=None, offset=None):
         if debug:
-            print "DEBUG obj:", obj
-            print "DEBUG typemap:", typemap
-        for k, typecode in typemap.items():
+            print("DEBUG obj:", obj)
+            print("DEBUG typemap:", typemap)
+        for k, typecode in list(typemap.items()):
             o = obj[k].strip()
             if typecode == 's':
                 pass
@@ -171,7 +171,7 @@ class TextDataReader(BaseDataReader):
                     raise Exception('astropy.time.Time scale must be specified for date parsing')
                 time_format = typecode[1:]
                 # Option 1: format is one recognized by astropy.time.Time
-                if time_format in astropy.time.Time.FORMATS.keys():
+                if time_format in list(astropy.time.Time.FORMATS.keys()):
                     # Convert these to float first
                     if time_format in ('byear', 'cxcsec', 'gps', 'jd', 'jyear', 'mjd', 'plot_date', 'unix'):
                         obj[k] = float(obj[k])
@@ -184,7 +184,7 @@ class TextDataReader(BaseDataReader):
                     try:
                         dateobj = datetime.datetime.strptime(datestr, time_format)
                         obj[k] = astropy.time.Time(dateobj, format='datetime', scale=time_scale)
-                    except ValueError, e:
+                    except ValueError as e:
                         # TODO: this is probably a bad idea.
                         #  Return also an error dict showing which field parsed badly?
                         #  Allowing the client to try to re-parse?
@@ -201,13 +201,13 @@ class TextDataReader(BaseDataReader):
                 continue
             line = line.rstrip('\n')
             row = re.split(delim, line)
-            result = dict(zip(colnames, row))
+            result = dict(list(zip(colnames, row)))
             if debug:
-                print "DEBUG %06i line:" % linenum, line
-                print "DEBUG %06i row:" % linenum, row
+                print("DEBUG %06i line:" % linenum, line)
+                print("DEBUG %06i row:" % linenum, row)
             self.typecast(result, typemap, **typecast_kwargs)
             if debug:
-                print "DEBUG %06i result:" %linenum, result
+                print("DEBUG %06i result:" %linenum, result)
             yield result
         fh.close()
 
@@ -216,8 +216,8 @@ class TextDataReader(BaseDataReader):
         result = {}
         typemap = {}
         if debug:
-            print "DEBUG line:", line
-            print "DEBUG spec:", spec
+            print("DEBUG line:", line)
+            print("DEBUG spec:", spec)
         for k in spec:
             (initial, final, typecode) = spec[k]
             result[k] = line[initial:final]
@@ -226,7 +226,7 @@ class TextDataReader(BaseDataReader):
         return result
 
     def stripstr(self, datadict, strlist=None):
-        for k,v in datadict.items():
+        for k,v in list(datadict.items()):
             if type(v) is str and (strlist is None or k in strlist):
                 datadict[k] = v.strip()
                 if datadict[k] == '':

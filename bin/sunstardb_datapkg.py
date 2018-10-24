@@ -17,30 +17,30 @@ dataobj = datapkg.load_class(dataname)
 
 def fatal_if(bool, message):
     if bool:
-        print "ERROR:", message
-        print "Exiting."
+        print("ERROR:", message)
+        print("Exiting.")
         exit(-1)
 
-print "Begining ingestion of data package '%s'" % dataname
+print("Begining ingestion of data package '%s'" % dataname)
 
 db_ref = db.fetch_reference(dataobj.reference)
 if db_ref is None:
-    print "Inserting reference '%s'" % dataobj.reference['name']
+    print("Inserting reference '%s'" % dataobj.reference['name'])
     db_ref = db.insert_reference(dataobj.reference)
 
 db_origin = db.fetch_origin(dataobj.origin)
 if db_origin is None:
-    print "Inserting origin '%s'" % dataobj.origin['name']
+    print("Inserting origin '%s'" % dataobj.origin['name'])
     db_origin = db.insert_origin(dataobj.origin)
 
 # TODO: currently source is a one-time use.  What about appending to a long time series?
-print "Inserting source '%s'" % dataobj.source['name']
+print("Inserting source '%s'" % dataobj.source['name'])
 db_source = db.insert_source(origin_id=db_origin['id'], **dataobj.source)
 
 global_instr = None
 instrument_cache = None
 if dataobj.instrument is not None:
-    if isinstance(dataobj.instrument, basestring):
+    if isinstance(dataobj.instrument, str):
         global_instr = db.fetch_instrument({'name': dataobj.instrument})
         fatal_if(global_instr is None, "Instrument '%s' is not in the database" % dataobj.instrument)
     elif isinstance(dataobj.instrument, list):
@@ -50,11 +50,11 @@ if dataobj.instrument is not None:
             fatal_if(db_i is None, "Instrument '%s' is not in the database" % instrument)
             instrument_cache[instrument] = db_i
     else:
-        print "ERROR: unexpected instrument specification"
-        print "Exiting."
+        print("ERROR: unexpected instrument specification")
+        print("Exiting.")
         exit(-1)
 
-print "Inserting data..."
+print("Inserting data...")
 utils.time_reset()
 star_cache = {}
 type_cache = {}
@@ -75,9 +75,9 @@ for datum in dataobj.data():
     if star not in star_cache:
         db_star = db.fetch_star(name=star)
         if db_star is None:
-            print "Inserting new star '%s'..." % star,
+            print("Inserting new star '%s'..." % star, end=' ')
             db_star = db.insert_star(name=star)
-            print "resolved as '%s'" % db_star['name']
+            print("resolved as '%s'" % db_star['name'])
             newstars += 1
         star_cache[star] = db_star
     else:
@@ -91,28 +91,28 @@ for datum in dataobj.data():
     else:
         db_instr = global_instr
 
-    print "Inserting datatype '%s' for star '%s' ('%s' in source)" % (datatype, db_star['name'], star)
+    print("Inserting datatype '%s' for star '%s' ('%s' in source)" % (datatype, db_star['name'], star))
     if args.debug:
-        print 'DATUM:', datum
+        print('DATUM:', datum)
     db.insert_datum(datum, db_star, db_type, db_source, db_ref, db_instr)
     n_data += 1
 
 n_stars = len(star_cache)
-print "Inserted %i data points for %i stars (%i new)" % (n_data, n_stars, newstars),
-print "in %0.3f seconds" % utils.time_total()
+print("Inserted %i data points for %i stars (%i new)" % (n_data, n_stars, newstars), end=' ')
+print("in %0.3f seconds" % utils.time_total())
 
-print "Creating dataset for source '%s'" % db_source['name']
+print("Creating dataset for source '%s'" % db_source['name'])
 db.create_dataset_from_source(db_source)
 
 if dataobj.sanity_check is not None:
-    print "Performing sanity checks"
+    print("Performing sanity checks")
     db.sanity_check(dataobj.sanity_check, db_source)
 
-print "Finished loading data package '%s'," % dataname,
+print("Finished loading data package '%s'," % dataname, end=' ')
 if not args.nocommit:
-    print "committing"
+    print("committing")
     db.commit()
 else:
-    print "NOT COMMITING because of --nocommit option."
+    print("NOT COMMITING because of --nocommit option.")
 
 db.close()

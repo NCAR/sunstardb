@@ -107,7 +107,7 @@ def lookup_simbad_info(object_name):
     if simbad_info is None:
         return None
     info_dict = {}
-    for k in simbad_info.keys():
+    for k in list(simbad_info.keys()):
         # Result is in first (only) row
         # lowercase keys in result
         info_dict[k.lower()] = simbad_info[0][k]
@@ -130,7 +130,7 @@ def lookup_simbad_info(object_name):
 def format_simbad_coord(ra, dec):
     """Usually SIMBAD formats ra 'hh mm ss.ss' dec '+dd mm ss.ss'.  This fixes exceptions to that rule..."""
     result = dict(ra=ra, dec=dec)
-    for k, v in result.items():
+    for k, v in list(result.items()):
         a = v.split(' ')
         if len(a) == 3:
             # this is expected
@@ -152,7 +152,7 @@ def format_simbad_coord(ra, dec):
 # Some objects; the utility here is for documentation purposes.
 class RowObject:
     def __init__(self, rowdict, exceptions=[]):
-        for k, v in rowdict.items():
+        for k, v in list(rowdict.items()):
             if k not in exceptions:
                 setattr(self, k, v)
     
@@ -208,7 +208,7 @@ def db_bind_keys(*bind_reqkeys, **bind_kwargs):
                 if req not in kwargs:
                     misslist.append(req)
             if len(misslist) > 0:
-                raise DatabaseKeyError(misslist, kwargs.keys())
+                raise DatabaseKeyError(misslist, list(kwargs.keys()))
 
             # Set optional keys to 'None'
             if bind_kwargs.get('optional'):
@@ -226,9 +226,9 @@ class SunStarDB(Database):
         parser = db_argparser(arguments=arguments)
         args = parser.parse_args()
         db_params = db_kwargs(args)
-        print "Connecting to database...",
+        print("Connecting to database...", end=' ')
         db = SunStarDB(**db_params)
-        print "Done."
+        print("Done.")
         return args, db
 
     @db_bind_keys('name')
@@ -406,7 +406,7 @@ class SunStarDB(Database):
         # Insert the rest of the names found in SIMBAD
         sql = """INSERT INTO star_alias (star, type, name)
                       VALUES (%(star_id)s, %(type)s, %(name)s)"""
-        for idtype, namelist in simbad_ids.items():
+        for idtype, namelist in list(simbad_ids.items()):
             for name in namelist:
                 self.execute(sql, {'star_id':db_star['id'],
                                    'type':idtype,
@@ -555,14 +555,14 @@ class SunStarDB(Database):
         if attach is not None:
             if attach is True:
                 obj[key] = db_obj
-            elif isinstance(attach, basestring):
+            elif isinstance(attach, str):
                 obj.setdefault(attach, {})
                 obj[attach][key] = db_obj
 
     def prepare_err(self, obj):
         if obj.get('err') is not None:
             # Case where error is expressed as a percent
-            if isinstance(obj['err'], basestring) and obj['err'].endswith('%'):
+            if isinstance(obj['err'], str) and obj['err'].endswith('%'):
                 obj['err'] = abs(obj['val']) * float(obj['err'].rstrip('%')) / 100.0
 
             # Set lo and hi bounds of the error
@@ -796,7 +796,7 @@ class SunStarDB(Database):
         """Execute sanity checks for the given source"""
         def maybe_print(msg):
             if verbose:
-                print msg
+                print(msg)
         if 'exists_all_stars' in tasks:
             for datatype in tasks['exists_all_stars']:
                 maybe_print("Checking: '%s' data exists for all stars..." % datatype)
@@ -877,7 +877,7 @@ class SunStarDB(Database):
         """
         # XXX TODO: protect against using timeseries data types here,
         #           or, provide subqueries which turn timeseries into scalars
-        ixs = range(len(datatypes))
+        ixs = list(range(len(datatypes)))
 
         # Define source sub-tables
         sql = "WITH "
@@ -886,7 +886,7 @@ class SunStarDB(Database):
             dcols = 'd.*'
             if meta and dtype in meta:
                 # listify a simple string value
-                if isinstance(meta[dtype], basestring):
+                if isinstance(meta[dtype], str):
                     meta[dtype] = [ meta[dtype] ]
                 for metacol in meta[dtype]:
                     dcols += ", d.meta->>'%s' \"%s\"" % (metacol, metacol)
@@ -1000,5 +1000,5 @@ class SunStarDB(Database):
                                        %(ra_max)s, %(dec_min)s,
                                        %(ra_min)s, %(dec_min)s,
                                        %(ra_min)s, %(dec_max)s}')"""
-        result = self.fetchall(sql, dict({'dataset':dataset}.items() + box.items()))
+        result = self.fetchall(sql, dict(list({'dataset':dataset}.items()) + list(box.items())))
         return result
