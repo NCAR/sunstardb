@@ -10,7 +10,10 @@ from sunstardb import datapkg
 from sunstardb import utils
 
 more_args = [ dict(name='datapkg'),
-              dict(flag='--nocommit', action='store_true', help="For testing, skip committing at the end.") ]
+              dict(flag='--test', action='store_true', 
+                   help="For testing, prints datapackage contents without inserting to DB."),
+              dict(flag='--nocommit', action='store_true',
+                   help="For testing, skip committing at the end.") ]
 (args, db) = SunStarDB.cli_connect(more_args)
 dataname = args.datapkg
 dataobj = datapkg.load_class(dataname)
@@ -20,6 +23,19 @@ def fatal_if(bool, message):
         print("ERROR:", message)
         print("Exiting.")
         exit(-1)
+
+if args.test:
+    print("=== TESTING MODE ===")
+    print("reference:", dataobj.reference)
+    print("origin:", dataobj.origin)
+    print("source:", dataobj.source)
+    print("instrument:", dataobj.instrument)
+    print("=== DATA ===")
+    n_data = 1
+    for datum in dataobj.data():
+        print("datum %i:" % n_data, datum)
+        n_data += 1
+    exit(0)
 
 print("Begining ingestion of data package '%s'" % dataname)
 
