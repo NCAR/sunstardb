@@ -46,7 +46,7 @@ sunstardb requires the following packages:
 
    `curl -L --user-agent "Lynx/0 libwww-FM/0" 'https://goo.gl/h1WH2A' > sunstardb.cfg`  
    * Or, if neither of the above utilities are installed, using your
-   usual web browser.  Go to https://goo.gl/h1WH2A and save the output
+   usual web browser.  Go to http://bit.ly/sunstardb_user and save the output
    to a file named `sunstardb.cfg` in the top-level folder.
 1. `export PYTHONPATH=$PWD:$PYTHONPATH`
 1. Run the example notebook:
